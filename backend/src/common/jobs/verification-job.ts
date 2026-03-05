@@ -10,7 +10,9 @@ import {
   VerificationEngine,
   MetricsSnapshot,
   VerificationInput,
+  VerificationResult,
 } from '../engines/verification';
+import { ActionStatus } from '../enums';
 
 @Injectable()
 export class VerificationJob {
@@ -75,7 +77,7 @@ export class VerificationJob {
     }
   }
 
-  private async verifyAction(action: ActionEntity): Promise<any | null> {
+  private async verifyAction(action: ActionEntity): Promise<VerificationResult | null> {
     const beforeSnapshot = await this.metricsRepo
       .createQueryBuilder('m')
       .where('m.skuId = :skuId', { skuId: action.skuId })
@@ -111,7 +113,7 @@ export class VerificationJob {
       actionId: action.id,
       actionType: action.type,
       skuId: action.skuId,
-      intendedValue: (action.params as any)?.targetValue ?? 0,
+      intendedValue: action.params?.targetValue ?? 0,
       beforeMetrics,
       afterMetrics,
     };
@@ -119,7 +121,8 @@ export class VerificationJob {
     const result = this.verificationEngine.verify(input);
 
     await this.actionRepo.update(action.id, {
-      status: 'VERIFIED' as any,
+      status: ActionStatus.VERIFIED,
+      // JSONB column requires `as any` for TypeORM's DeepPartial constraint
       verificationResult: {
         gain: result.gain,
         loss: result.loss,
@@ -132,8 +135,9 @@ export class VerificationJob {
     return result;
   }
 
-  private toMetricsSnapshot(raw: any): MetricsSnapshot {
-    const data = raw.data || {};
+  private toMetricsSnapshot(raw: MetricSnapshotEntity): MetricsSnapshot {
+    // Metric data is stored in the JSONB `dimensions` column
+    const data = (raw.dimensions as Record<string, any>) || {};
     return {
       price: data.price ?? 0,
       sales24h: data.sales24h ?? 0,

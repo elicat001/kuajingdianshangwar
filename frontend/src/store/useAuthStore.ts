@@ -2,11 +2,15 @@
 import { create } from 'zustand';
 import { type User } from '@/types';
 import { setToken, removeToken, getToken } from '@/lib/auth';
+import api from '@/lib/api';
 
 interface AuthState {
   user: User | null;
   token: string | null;
+  loading: boolean;
+  error: string | null;
   login: (email: string, password: string) => Promise<void>;
+  register: (email: string, password: string, name: string) => Promise<void>;
   logout: () => void;
   isAuthenticated: () => boolean;
 }
@@ -14,12 +18,33 @@ interface AuthState {
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   token: typeof window !== 'undefined' ? getToken() : null,
-  login: async (_email: string, _password: string) => {
-    // Mock login
-    const mockUser: User = { id: 'd1', companyId: 'c1', email: _email, name: 'Admin', role: 'ADMIN' as any };
-    const mockToken = 'mock-jwt-token-' + Date.now();
-    setToken(mockToken);
-    set({ user: mockUser, token: mockToken });
+  loading: false,
+  error: null,
+  login: async (email: string, password: string) => {
+    set({ loading: true, error: null });
+    try {
+      const res = await api.post('/auth/login', { email, password });
+      const { access_token, user } = res.data;
+      setToken(access_token);
+      set({ user, token: access_token, loading: false });
+    } catch (err: any) {
+      const message = err.response?.data?.message || 'Login failed';
+      set({ loading: false, error: message });
+      throw new Error(message);
+    }
+  },
+  register: async (email: string, password: string, name: string) => {
+    set({ loading: true, error: null });
+    try {
+      const res = await api.post('/auth/register', { email, password, name });
+      const { access_token, user } = res.data;
+      setToken(access_token);
+      set({ user, token: access_token, loading: false });
+    } catch (err: any) {
+      const message = err.response?.data?.message || 'Registration failed';
+      set({ loading: false, error: message });
+      throw new Error(message);
+    }
   },
   logout: () => {
     removeToken();

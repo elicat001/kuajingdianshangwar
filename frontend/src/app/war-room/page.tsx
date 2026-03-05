@@ -9,12 +9,15 @@ import RiskHeatmap from '@/components/dashboard/RiskHeatmap';
 import SeverityBadge from '@/components/common/SeverityBadge';
 import StatusTag from '@/components/common/StatusTag';
 import { useMetricsStore } from '@/store/useMetricsStore';
-import { mockAlerts, mockActions } from '@/lib/mock-data';
+import { useAlertStore } from '@/store/useAlertStore';
+import { useActionStore } from '@/store/useActionStore';
 import Link from 'next/link';
 
 export default function WarRoom() {
   const { metrics, salesTrend, adsTrend, loading, fetchWarRoomMetrics } = useMetricsStore();
-  useEffect(() => { fetchWarRoomMetrics(); }, [fetchWarRoomMetrics]);
+  const { alerts, fetchAlerts } = useAlertStore();
+  const { actions, fetchActions } = useActionStore();
+  useEffect(() => { fetchWarRoomMetrics(); fetchAlerts(); fetchActions(); }, [fetchWarRoomMetrics, fetchAlerts, fetchActions]);
 
   if (loading || !metrics) return <Spin size="large" style={{ display: 'block', margin: '100px auto' }} />;
 
@@ -43,7 +46,7 @@ export default function WarRoom() {
         </Col>
         <Col xs={24} lg={12}>
           <Card title="最新预警 Top 5" bordered={false} extra={<Link href="/alerts">查看全部</Link>}>
-            <Table dataSource={mockAlerts.slice(0, 5)} rowKey="id" size="small" pagination={false} columns={[
+            <Table dataSource={alerts.slice(0, 5)} rowKey="id" size="small" pagination={false} columns={[
               { title: '严重度', dataIndex: 'severity', width: 100, render: (v: string) => <SeverityBadge severity={v} /> },
               { title: '标题', dataIndex: 'title', ellipsis: true },
               { title: '状态', dataIndex: 'status', width: 100, render: (v: string) => <StatusTag status={v} /> },
@@ -55,7 +58,7 @@ export default function WarRoom() {
       <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
         <Col xs={24}>
           <Card title="待处理动作 Top 5" bordered={false} extra={<Link href="/actions">查看全部</Link>}>
-            <Table dataSource={mockActions.filter((a) => ['DRAFT', 'SUBMITTED', 'APPROVED'].includes(a.status)).slice(0, 5)} rowKey="id" size="small" pagination={false} columns={[
+            <Table dataSource={actions.filter((a) => ['DRAFT', 'SUBMITTED', 'APPROVED'].includes(a.status)).slice(0, 5)} rowKey="id" size="small" pagination={false} columns={[
               { title: '类型', dataIndex: 'type', width: 160 },
               { title: 'SKU', dataIndex: 'skuName', ellipsis: true },
               { title: '状态', dataIndex: 'status', width: 120, render: (v: string) => <StatusTag status={v} /> },

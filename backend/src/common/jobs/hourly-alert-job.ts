@@ -16,6 +16,7 @@ import { COMPETITOR_RULES } from '../engines/competitor-rules';
 import { PRICING_RULES } from '../engines/pricing-rules';
 import { generateDedupeKey } from '../utils/dedupe';
 import { calcDaysOfCover } from '../utils/metrics-calculator';
+import { SkuStatus, AlertStatus, RecommendationStatus } from '../enums';
 
 @Injectable()
 export class HourlyAlertJob {
@@ -57,7 +58,7 @@ export class HourlyAlertJob {
 
     try {
       const activeSKUs = await this.skuRepo.find({
-        where: { status: 'ACTIVE' as any },
+        where: { status: SkuStatus.ACTIVE },
       });
 
       this.logger.log(`Found ${activeSKUs.length} active SKUs to evaluate`);
@@ -126,8 +127,9 @@ export class HourlyAlertJob {
       .take(14)
       .getMany();
 
-    const data = (latestMetrics as any).data || {};
-    const prevData = (prevMetrics as any)?.data || {};
+    // Metric data is stored in the JSONB `dimensions` column
+    const data = (latestMetrics.dimensions as Record<string, any>) || {};
+    const prevData = (prevMetrics?.dimensions as Record<string, any>) || {};
 
     const daysOfCover = calcDaysOfCover(
       data.available ?? 0,
@@ -166,22 +168,26 @@ export class HourlyAlertJob {
         priceWarDropPct: 3,
         priceWarMinDropCount: 2,
       },
-      competitors: competitors.map((c: any) => ({
-        competitorAsin: c.competitorAsin,
-        price: c.currentPrice ?? 0,
-        prevPrice: c.prevPrice ?? 0,
-        rank: c.currentRank ?? 0,
-        prevRank: c.prevRank ?? 0,
-        reviewCount: c.reviewCount ?? 0,
-        prevReviewCount: c.prevReviewCount ?? 0,
-        avgDailyReviews: c.avgDailyReviews ?? 0,
-        rating: c.rating ?? 0,
-      })),
+      competitors: competitors.map((c) => {
+        // Competitor metrics are stored in the JSONB `metadata` column
+        const meta = (c.metadata as Record<string, any>) || {};
+        return {
+          competitorAsin: c.asin ?? '',
+          price: meta.currentPrice ?? 0,
+          prevPrice: meta.prevPrice ?? 0,
+          rank: meta.currentRank ?? 0,
+          prevRank: meta.prevRank ?? 0,
+          reviewCount: meta.reviewCount ?? 0,
+          prevReviewCount: meta.prevReviewCount ?? 0,
+          avgDailyReviews: meta.avgDailyReviews ?? 0,
+          rating: meta.rating ?? 0,
+        };
+      }),
       history: {
-        acosDays: historicalMetrics.map((m: any) => m.data?.acos24h ?? 0),
-        salesDays: historicalMetrics.map((m: any) => m.data?.sales24h ?? 0),
-        spendDays: historicalMetrics.map((m: any) => m.data?.adsSpend24h ?? 0),
-        rankDays: historicalMetrics.map((m: any) => m.data?.rank ?? 0),
+        acosDays: historicalMetrics.map((m) => (m.dimensions as Record<string, any>)?.acos24h ?? 0),
+        salesDays: historicalMetrics.map((m) => (m.dimensions as Record<string, any>)?.sales24h ?? 0),
+        spendDays: historicalMetrics.map((m) => (m.dimensions as Record<string, any>)?.adsSpend24h ?? 0),
+        rankDays: historicalMetrics.map((m) => (m.dimensions as Record<string, any>)?.rank ?? 0),
       },
     };
   }
@@ -214,30 +220,34 @@ export class HourlyAlertJob {
 
     if (existing) return false;
 
-    const savedAlert = await this.alertRepo.save({
-      dedupeKey,
-      type: alert.type,
-      severity: alert.severity,
-      skuId: alert.skuId,
-      storeId: alert.storeId,
-      siteId: alert.siteId,
-      title: alert.ruleName,
-      message: JSON.stringify(alert.evidence),
-      evidenceJson: alert.evidence,
-      status: 'OPEN' as any,
-      windowStart: new Date(windowStart),
-      windowEnd: new Date(windowEnd),
-    } as any);
+    const savedAlert = await this.alertRepo.save(
+      this.alertRepo.create({
+        dedupeKey,
+        type: alert.type,
+        severity: alert.severity,
+        skuId: alert.skuId,
+        storeId: alert.storeId,
+        siteId: alert.siteId,
+        title: alert.ruleName,
+        message: JSON.stringify(alert.evidence),
+        evidenceJson: alert.evidence,
+        status: AlertStatus.OPEN,
+        windowStart: new Date(windowStart),
+        windowEnd: new Date(windowEnd),
+      }),
+    );
 
     for (const rec of alert.recommendations) {
-      await this.recommendationRepo.save({
-        alertId: savedAlert.id,
-        skuId: alert.skuId,
-        rationale: rec.label,
-        suggestedActions: [{ type: rec.type, params: rec.params }],
-        riskLevel: rec.riskLevel,
-        status: 'PENDING' as any,
-      } as any);
+      await this.recommendationRepo.save(
+        this.recommendationRepo.create({
+          alertId: savedAlert.id,
+          skuId: alert.skuId,
+          rationale: rec.label,
+          suggestedActions: [{ type: rec.type, params: rec.params }],
+          riskLevel: rec.riskLevel as RecommendationEntity['riskLevel'],
+          status: RecommendationStatus.PENDING,
+        }),
+      );
     }
 
     return true;

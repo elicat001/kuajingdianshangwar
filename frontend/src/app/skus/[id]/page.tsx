@@ -1,14 +1,17 @@
 'use client';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Row, Col, Card, Statistic, Button, List, Timeline, Tag, Spin, message } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import ReactECharts from 'echarts-for-react';
 import { useSkuStore } from '@/store/useSkuStore';
 import { useMetricsStore } from '@/store/useMetricsStore';
+import { useAlertStore } from '@/store/useAlertStore';
+import { useActionStore } from '@/store/useActionStore';
 import StatusTag from '@/components/common/StatusTag';
 import SeverityBadge from '@/components/common/SeverityBadge';
-import { mockAlerts, mockRecommendations, mockActions } from '@/lib/mock-data';
+import api from '@/lib/api';
+import { type Recommendation, type Alert, type Action } from '@/types';
 import dayjs from 'dayjs';
 
 export default function BattleCardPage() {
@@ -16,17 +19,24 @@ export default function BattleCardPage() {
   const router = useRouter();
   const { currentSku, fetchSkuDetail, loading: skuLoading } = useSkuStore();
   const { skuMetrics, fetchSkuMetrics, loading: metLoading } = useMetricsStore();
+  const { alerts, fetchAlerts } = useAlertStore();
+  const { actions, fetchActions } = useActionStore();
+  const [skuRecs, setSkuRecs] = useState<Recommendation[]>([]);
 
   useEffect(() => {
     fetchSkuDetail(id as string);
     fetchSkuMetrics(id as string);
-  }, [id, fetchSkuDetail, fetchSkuMetrics]);
+    fetchAlerts({ skuId: id as string });
+    fetchActions({ skuId: id as string });
+    api.get('/recommendations', { params: { skuId: id } })
+      .then((res) => setSkuRecs(res.data?.data ?? res.data ?? []))
+      .catch(() => {});
+  }, [id, fetchSkuDetail, fetchSkuMetrics, fetchAlerts, fetchActions]);
 
   if (skuLoading || metLoading || !currentSku || !skuMetrics) return <Spin size="large" style={{ display: 'block', margin: '100px auto' }} />;
 
-  const skuAlerts = mockAlerts.filter((a) => a.skuId === id);
-  const skuRecs = mockRecommendations.filter((r) => r.skuId === id);
-  const skuActions = mockActions.filter((a) => a.skuId === id);
+  const skuAlerts = alerts.filter((a) => a.skuId === id);
+  const skuActions = actions.filter((a) => a.skuId === id);
   const days = ['D-6', 'D-5', 'D-4', 'D-3', 'D-2', 'D-1', 'Today'];
 
   const salesChartOption = {

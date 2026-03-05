@@ -1,26 +1,36 @@
 'use client';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Card, Descriptions, Button, Space, List, message, Spin } from 'antd';
 import SeverityBadge from '@/components/common/SeverityBadge';
 import StatusTag from '@/components/common/StatusTag';
-import { mockRecommendations } from '@/lib/mock-data';
 import { useAlertStore } from '@/store/useAlertStore';
+import api from '@/lib/api';
+import { type Recommendation } from '@/types';
 import dayjs from 'dayjs';
 
 export default function AlertDetailPage() {
   const { id } = useParams();
   const router = useRouter();
-  const { alerts, loading, fetchAlerts, acknowledgeAlert, closeAlert } = useAlertStore();
+  const { currentAlert, loading, fetchAlertDetail, acknowledgeAlert, closeAlert } = useAlertStore();
+  const [recs, setRecs] = useState<Recommendation[]>([]);
+  const [recsLoading, setRecsLoading] = useState(false);
 
   useEffect(() => {
-    if (alerts.length === 0) fetchAlerts();
-  }, [alerts.length, fetchAlerts]);
+    fetchAlertDetail(id as string);
+  }, [id, fetchAlertDetail]);
 
-  const alert = alerts.find((a) => a.id === id);
-  const recs = mockRecommendations.filter((r) => r.alertId === id);
+  useEffect(() => {
+    setRecsLoading(true);
+    api.get('/recommendations', { params: { alertId: id } })
+      .then((res) => setRecs(res.data?.data ?? res.data ?? []))
+      .catch(() => {})
+      .finally(() => setRecsLoading(false));
+  }, [id]);
 
-  if (loading) return <Spin size="large" style={{ display: 'block', margin: '100px auto' }} />;
+  const alert = currentAlert;
+
+  if (loading || recsLoading) return <Spin size="large" style={{ display: 'block', margin: '100px auto' }} />;
   if (!alert) return <Card>预警不存在</Card>;
 
   return (

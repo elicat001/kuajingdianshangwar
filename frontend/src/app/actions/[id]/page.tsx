@@ -17,13 +17,13 @@ const statusSteps = [
 export default function ActionDetailPage() {
   const { id } = useParams();
   const router = useRouter();
-  const { actions, loading, fetchActions, submitAction, approveAction, rejectAction } = useActionStore();
+  const { currentAction, loading, fetchActionDetail, submitAction, approveAction, rejectAction } = useActionStore();
 
   useEffect(() => {
-    if (actions.length === 0) fetchActions();
-  }, [actions.length, fetchActions]);
+    fetchActionDetail(id as string);
+  }, [id, fetchActionDetail]);
 
-  const action = actions.find((a) => a.id === id);
+  const action = currentAction;
 
   if (loading) return <Spin size="large" style={{ display: 'block', margin: '100px auto' }} />;
   if (!action) return <Card>动作不存在</Card>;

@@ -6,6 +6,7 @@ import { Repository, LessThan } from 'typeorm';
 import { SkuMasterEntity } from '../../data/entities/sku-master.entity';
 import { AlertEntity } from '../../alert/entities/alert.entity';
 import { MetricSnapshotEntity } from '../../metrics/entities/metric-snapshot.entity';
+import { AlertStatus, Severity } from '../enums';
 
 @Injectable()
 export class DailySummaryJob {
@@ -41,7 +42,7 @@ export class DailySummaryJob {
 
     const staleAlerts = await this.alertRepo.find({
       where: {
-        status: 'OPEN' as any,
+        status: AlertStatus.OPEN,
         createdAt: LessThan(cutoff),
       },
     });
@@ -50,11 +51,11 @@ export class DailySummaryJob {
       `Found ${staleAlerts.length} unprocessed alerts older than 24h`,
     );
 
-    const severityEscalation: Record<string, string> = {
-      LOW: 'MEDIUM',
-      MEDIUM: 'HIGH',
-      HIGH: 'CRITICAL',
-      CRITICAL: 'CRITICAL',
+    const severityEscalation: Record<Severity, Severity> = {
+      [Severity.LOW]: Severity.MEDIUM,
+      [Severity.MEDIUM]: Severity.HIGH,
+      [Severity.HIGH]: Severity.CRITICAL,
+      [Severity.CRITICAL]: Severity.CRITICAL,
     };
 
     let escalated = 0;
@@ -63,7 +64,7 @@ export class DailySummaryJob {
       const newSeverity = severityEscalation[alert.severity] ?? alert.severity;
       if (newSeverity !== alert.severity) {
         await this.alertRepo.update(alert.id, {
-          severity: newSeverity as any,
+          severity: newSeverity,
         });
         escalated++;
       }
