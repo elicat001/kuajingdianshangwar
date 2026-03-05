@@ -7,6 +7,7 @@ import { ApprovalEntity } from './entities/approval.entity';
 import { ExecutionEntity } from './entities/execution.entity';
 import { RollbackEntity } from './entities/rollback.entity';
 import { AuditLogEntity } from './entities/audit-log.entity';
+import { DataSource } from 'typeorm';
 import { ActionType, ActionStatus } from '../common/enums';
 import {
   createMockRepository,
@@ -41,6 +42,22 @@ describe('ActionService', () => {
         { provide: getRepositoryToken(ExecutionEntity), useValue: executionRepo },
         { provide: getRepositoryToken(RollbackEntity), useValue: rollbackRepo },
         { provide: getRepositoryToken(AuditLogEntity), useValue: auditRepo },
+        {
+          provide: DataSource,
+          useValue: {
+            createQueryRunner: jest.fn().mockReturnValue({
+              connect: jest.fn(),
+              startTransaction: jest.fn(),
+              commitTransaction: jest.fn(),
+              rollbackTransaction: jest.fn(),
+              release: jest.fn(),
+              manager: {
+                save: jest.fn().mockImplementation((entity) => Promise.resolve(entity)),
+                findOne: jest.fn(),
+              },
+            }),
+          },
+        },
       ],
     }).compile();
 

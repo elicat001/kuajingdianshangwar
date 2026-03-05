@@ -5,11 +5,15 @@ const config: Config = {
   rootDir: '.',
   testRegex: '.*\\.spec\\.ts$',
   transform: {
-    '^.+\\.ts$': 'ts-jest',
+    '^.+\\.tsx?$': 'ts-jest',
+    '^.+\\.jsx?$': ['ts-jest', { useESM: false }],
   },
   collectCoverageFrom: ['src/**/*.ts', '!src/main.ts', '!src/**/*.module.ts'],
   coverageDirectory: './coverage',
   testEnvironment: 'node',
+  transformIgnorePatterns: [
+    'node_modules/(?!uuid/)',
+  ],
   moduleNameMapper: {
     '^@common/(.*)$': '<rootDir>/src/common/$1',
     '^@auth/(.*)$': '<rootDir>/src/auth/$1',

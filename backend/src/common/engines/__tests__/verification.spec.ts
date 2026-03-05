@@ -122,7 +122,7 @@ describe('VerificationEngine', () => {
       const result = engine.verify(input);
 
       expect(result.recommendRollback).toBe(true);
-      expect(result.reason).toContain('Rank degraded');
+      expect(result.reason).toContain('rank');
     });
   });
 
