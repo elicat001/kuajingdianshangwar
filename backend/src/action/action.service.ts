@@ -5,7 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { ActionEntity } from './entities/action.entity';
 import { ApprovalEntity } from './entities/approval.entity';
 import { ExecutionEntity } from './entities/execution.entity';
@@ -47,6 +47,7 @@ export class ActionService {
     private readonly rollbackRepo: Repository<RollbackEntity>,
     @InjectRepository(AuditLogEntity)
     private readonly auditRepo: Repository<AuditLogEntity>,
+    private readonly dataSource: DataSource,
   ) {}
 
   async createAction(companyId: string, userId: string, dto: CreateActionDto) {

@@ -202,10 +202,10 @@ export class VerificationEngine {
         else loss += Math.abs(salesDelta);
 
         // Loss from rank degradation
-        if (after.rank > before.rank) {
+        if (after.rank > before.rank && before.rank > 0) {
           const rankDegradation = ((after.rank - before.rank) / before.rank) * 10;
           loss += rankDegradation;
-        } else if (after.rank < before.rank) {
+        } else if (after.rank < before.rank && before.rank > 0) {
           const rankImprovement = ((before.rank - after.rank) / before.rank) * 10;
           gain += rankImprovement;
         }

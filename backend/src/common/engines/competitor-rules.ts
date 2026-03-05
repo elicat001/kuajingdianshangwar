@@ -105,6 +105,7 @@ export const RANK_SURGE_RULE: Rule = {
 
     return ctx.competitors.some((c) => {
       // Rank improvement means lower number (e.g. 100 -> 30 is an improvement of 70)
+      if (c.prevRank <= 0) return false;
       const rankImprovement = c.prevRank - c.rank;
       return rankImprovement >= rankSurgeThreshold && c.rank > 0;
     });
@@ -117,7 +118,7 @@ export const RANK_SURGE_RULE: Rule = {
   buildEvidence(ctx: RuleContext): Record<string, any> {
     const rankSurgeThreshold = ctx.thresholds['rankSurgeThreshold'] ?? 50;
     const surgedCompetitors = (ctx.competitors ?? [])
-      .filter((c) => c.prevRank - c.rank >= rankSurgeThreshold && c.rank > 0)
+      .filter((c) => c.prevRank > 0 && c.prevRank - c.rank >= rankSurgeThreshold && c.rank > 0)
       .map((c) => ({
         asin: c.competitorAsin,
         prevRank: c.prevRank,

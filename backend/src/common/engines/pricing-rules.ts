@@ -7,7 +7,7 @@ import { Rule, RuleContext, SuggestedAction, CompetitorSnapshot } from './rule-e
 export const MARGIN_BELOW_FLOOR_RULE: Rule = {
   id: 'MARGIN_BELOW_FLOOR',
   name: 'Margin Below Floor',
-  type: AlertType.COMPETITOR_PRICE_DROP, // pricing alert, reusing closest enum
+  type: AlertType.MARGIN_BREACH,
   priority: 0, // highest priority
   enabled: true,
 
@@ -17,6 +17,7 @@ export const MARGIN_BELOW_FLOOR_RULE: Rule = {
     const marginFloorPct = ctx.thresholds['marginFloorPct'] ?? 10;
 
     if (costPerUnit <= 0) return false;
+    if (ctx.sku.price <= 0) return true; // price is zero or negative, margin is breached
 
     const totalCost = costPerUnit + feePerUnit;
     const margin = ((ctx.sku.price - totalCost) / ctx.sku.price) * 100;
@@ -53,6 +54,24 @@ export const MARGIN_BELOW_FLOOR_RULE: Rule = {
     const marginFloorPct = ctx.thresholds['marginFloorPct'] ?? 10;
     const totalCost = costPerUnit + feePerUnit;
     // Calculate the minimum price to restore margin floor
+    // Guard against marginFloorPct >= 100 which would cause division by zero or negative
+    if (marginFloorPct >= 100) {
+      return [
+        {
+          type: ActionType.ADJUST_PRICE,
+          label: `Margin floor ${marginFloorPct}% is unsustainable for ${ctx.sku.asin} - review cost structure`,
+          params: {
+            skuId: ctx.sku.skuId,
+            asin: ctx.sku.asin,
+            currentPrice: ctx.sku.price,
+            suggestedPrice: ctx.sku.price,
+            strategy: 'review_costs',
+          },
+          riskLevel: 'CRITICAL',
+        },
+      ];
+    }
+
     const minPrice = totalCost / (1 - marginFloorPct / 100);
 
     return [
@@ -78,7 +97,7 @@ export const MARGIN_BELOW_FLOOR_RULE: Rule = {
 export const PRICE_WAR_DETECTED_RULE: Rule = {
   id: 'PRICE_WAR_DETECTED',
   name: 'Price War Detected',
-  type: AlertType.COMPETITOR_PRICE_DROP,
+  type: AlertType.PRICE_WAR,
   priority: 1,
   enabled: true,
 
@@ -167,9 +186,10 @@ const PRICING_STRATEGIES: PricingStrategy[] = [
 ];
 
 function buildPricingStrategies(ctx: RuleContext): SuggestedAction[] {
-  const lowestCompetitorPrice = Math.min(
-    ...(ctx.competitors ?? []).map((c) => c.price).filter((p) => p > 0),
-  );
+  const validPrices = (ctx.competitors ?? []).map((c) => c.price).filter((p) => p > 0);
+  if (validPrices.length === 0) return [];
+
+  const lowestCompetitorPrice = Math.min(...validPrices);
 
   return PRICING_STRATEGIES.map((strategy) => ({
     type: ActionType.ADJUST_PRICE,

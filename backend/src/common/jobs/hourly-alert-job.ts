@@ -3,6 +3,12 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
+import { SkuMasterEntity } from '../../data/entities/sku-master.entity';
+import { AlertEntity } from '../../alert/entities/alert.entity';
+import { RecommendationEntity } from '../../recommendation/entities/recommendation.entity';
+import { MetricSnapshotEntity } from '../../metrics/entities/metric-snapshot.entity';
+import { CompetitorEntity } from '../../data/entities/competitor.entity';
+
 import { RuleEngine, RuleContext, AlertResult } from '../engines/rule-engine';
 import { STOCKOUT_RULES } from '../engines/stockout-rules';
 import { ADS_RULES } from '../engines/ads-rules';
@@ -17,16 +23,16 @@ export class HourlyAlertJob {
   private readonly engine: RuleEngine;
 
   constructor(
-    // Inject repositories as needed; placeholders below reflect expected entity structure.
-    // Replace with actual entity classes once they are created.
-    @InjectRepository('Sku') private readonly skuRepo: Repository<any>,
-    @InjectRepository('Alert') private readonly alertRepo: Repository<any>,
-    @InjectRepository('Recommendation')
-    private readonly recommendationRepo: Repository<any>,
-    @InjectRepository('SkuMetricsSnapshot')
-    private readonly metricsRepo: Repository<any>,
-    @InjectRepository('CompetitorMonitor')
-    private readonly competitorRepo: Repository<any>,
+    @InjectRepository(SkuMasterEntity)
+    private readonly skuRepo: Repository<SkuMasterEntity>,
+    @InjectRepository(AlertEntity)
+    private readonly alertRepo: Repository<AlertEntity>,
+    @InjectRepository(RecommendationEntity)
+    private readonly recommendationRepo: Repository<RecommendationEntity>,
+    @InjectRepository(MetricSnapshotEntity)
+    private readonly metricsRepo: Repository<MetricSnapshotEntity>,
+    @InjectRepository(CompetitorEntity)
+    private readonly competitorRepo: Repository<CompetitorEntity>,
   ) {
     this.engine = new RuleEngine();
     this.registerAllRules();
@@ -45,18 +51,13 @@ export class HourlyAlertJob {
     this.logger.log(`Registered ${allRules.length} rules`);
   }
 
-  /**
-   * Runs every hour. Pulls active SKU metrics, evaluates rules,
-   * and idempotently writes alerts and recommendations.
-   */
   @Cron(CronExpression.EVERY_HOUR)
   async handleHourlyAlerts(): Promise<void> {
     this.logger.log('Starting hourly alert evaluation...');
 
     try {
-      // 1. Fetch all active SKUs with latest metrics
       const activeSKUs = await this.skuRepo.find({
-        where: { status: 'ACTIVE' },
+        where: { status: 'ACTIVE' as any },
       });
 
       this.logger.log(`Found ${activeSKUs.length} active SKUs to evaluate`);
@@ -66,16 +67,13 @@ export class HourlyAlertJob {
 
       for (const sku of activeSKUs) {
         try {
-          // 2. Build rule context for each SKU
           const context = await this.buildRuleContext(sku);
           if (!context) continue;
 
-          // 3. Evaluate rules
           const result = this.engine.evaluate(context);
 
           if (result.alerts.length === 0) continue;
 
-          // 4. Idempotent write
           for (const alert of result.alerts) {
             const written = await this.writeAlertIdempotent(alert);
             if (written) {
@@ -101,11 +99,7 @@ export class HourlyAlertJob {
     }
   }
 
-  /**
-   * Build the RuleContext for a given SKU by fetching metrics, competitors, and history.
-   */
-  private async buildRuleContext(sku: any): Promise<RuleContext | null> {
-    // Fetch latest metrics snapshot
+  private async buildRuleContext(sku: SkuMasterEntity): Promise<RuleContext | null> {
     const latestMetrics = await this.metricsRepo.findOne({
       where: { skuId: sku.id },
       order: { createdAt: 'DESC' },
@@ -113,7 +107,6 @@ export class HourlyAlertJob {
 
     if (!latestMetrics) return null;
 
-    // Fetch previous day metrics for comparison
     const prevMetrics = await this.metricsRepo
       .createQueryBuilder('m')
       .where('m.skuId = :skuId', { skuId: sku.id })
@@ -122,12 +115,10 @@ export class HourlyAlertJob {
       .take(1)
       .getOne();
 
-    // Fetch competitors
     const competitors = await this.competitorRepo.find({
       where: { skuId: sku.id },
     });
 
-    // Fetch historical data (last 14 days)
     const historicalMetrics = await this.metricsRepo
       .createQueryBuilder('m')
       .where('m.skuId = :skuId', { skuId: sku.id })
@@ -135,9 +126,12 @@ export class HourlyAlertJob {
       .take(14)
       .getMany();
 
+    const data = (latestMetrics as any).data || {};
+    const prevData = (prevMetrics as any)?.data || {};
+
     const daysOfCover = calcDaysOfCover(
-      latestMetrics.available ?? 0,
-      latestMetrics.avgDailyUnits7d ?? 0,
+      data.available ?? 0,
+      data.avgDailyUnits7d ?? 0,
     );
 
     return {
@@ -146,29 +140,28 @@ export class HourlyAlertJob {
         asin: sku.asin ?? '',
         storeId: sku.storeId ?? '',
         siteId: sku.siteId ?? '',
-        available: latestMetrics.available ?? 0,
-        avgDailyUnits7d: latestMetrics.avgDailyUnits7d ?? 0,
+        available: data.available ?? 0,
+        avgDailyUnits7d: data.avgDailyUnits7d ?? 0,
         daysOfCover: daysOfCover === Infinity ? 999 : daysOfCover,
-        sales24h: latestMetrics.sales24h ?? 0,
-        salesPrev24h: prevMetrics?.sales24h ?? 0,
-        adsSpend24h: latestMetrics.adsSpend24h ?? 0,
-        adsOrders24h: latestMetrics.adsOrders24h ?? 0,
-        acos24h: latestMetrics.acos24h ?? 0,
-        tacos24h: latestMetrics.tacos24h ?? 0,
-        price: latestMetrics.price ?? 0,
-        prevPrice: prevMetrics?.price ?? latestMetrics.price ?? 0,
-        rank: latestMetrics.rank ?? 0,
-        prevRank: prevMetrics?.rank ?? latestMetrics.rank ?? 0,
+        sales24h: data.sales24h ?? 0,
+        salesPrev24h: prevData.sales24h ?? 0,
+        adsSpend24h: data.adsSpend24h ?? 0,
+        adsOrders24h: data.adsOrders24h ?? 0,
+        acos24h: data.acos24h ?? 0,
+        tacos24h: data.tacos24h ?? 0,
+        price: data.price ?? 0,
+        prevPrice: prevData.price ?? data.price ?? 0,
+        rank: data.rank ?? 0,
+        prevRank: prevData.rank ?? data.rank ?? 0,
       },
       thresholds: {
-        // Default thresholds; in production these come from store/site config
         adsWasteSpendMin: 50,
         acosHigh: 40,
         competitorPriceDropPct: 5,
         competitorPriceDropHighPct: 15,
         rankSurgeThreshold: 50,
-        costPerUnit: latestMetrics.costPerUnit ?? 0,
-        feePerUnit: latestMetrics.feePerUnit ?? 0,
+        costPerUnit: data.costPerUnit ?? 0,
+        feePerUnit: data.feePerUnit ?? 0,
         marginFloorPct: 10,
         priceWarDropPct: 3,
         priceWarMinDropCount: 2,
@@ -185,18 +178,14 @@ export class HourlyAlertJob {
         rating: c.rating ?? 0,
       })),
       history: {
-        acosDays: historicalMetrics.map((m: any) => m.acos24h ?? 0),
-        salesDays: historicalMetrics.map((m: any) => m.sales24h ?? 0),
-        spendDays: historicalMetrics.map((m: any) => m.adsSpend24h ?? 0),
-        rankDays: historicalMetrics.map((m: any) => m.rank ?? 0),
+        acosDays: historicalMetrics.map((m: any) => m.data?.acos24h ?? 0),
+        salesDays: historicalMetrics.map((m: any) => m.data?.sales24h ?? 0),
+        spendDays: historicalMetrics.map((m: any) => m.data?.adsSpend24h ?? 0),
+        rankDays: historicalMetrics.map((m: any) => m.data?.rank ?? 0),
       },
     };
   }
 
-  /**
-   * Write an alert and its recommendations idempotently using a dedupe key.
-   * Returns true if a new alert was created, false if it already existed.
-   */
   private async writeAlertIdempotent(alert: AlertResult): Promise<boolean> {
     const now = new Date();
     const windowStart = new Date(
@@ -219,40 +208,36 @@ export class HourlyAlertJob {
       windowEnd,
     );
 
-    // Check if alert already exists
     const existing = await this.alertRepo.findOne({
       where: { dedupeKey },
     });
 
     if (existing) return false;
 
-    // Insert alert
     const savedAlert = await this.alertRepo.save({
       dedupeKey,
       type: alert.type,
       severity: alert.severity,
       skuId: alert.skuId,
-      asin: alert.asin,
       storeId: alert.storeId,
       siteId: alert.siteId,
-      ruleId: alert.ruleId,
-      ruleName: alert.ruleName,
-      evidence: alert.evidence,
-      status: 'OPEN',
-      triggeredAt: alert.triggeredAt,
-    });
+      title: alert.ruleName,
+      message: JSON.stringify(alert.evidence),
+      evidenceJson: alert.evidence,
+      status: 'OPEN' as any,
+      windowStart: new Date(windowStart),
+      windowEnd: new Date(windowEnd),
+    } as any);
 
-    // Insert recommendations
     for (const rec of alert.recommendations) {
       await this.recommendationRepo.save({
         alertId: savedAlert.id,
         skuId: alert.skuId,
-        actionType: rec.type,
-        label: rec.label,
-        params: rec.params,
+        rationale: rec.label,
+        suggestedActions: [{ type: rec.type, params: rec.params }],
         riskLevel: rec.riskLevel,
-        status: 'PENDING',
-      });
+        status: 'PENDING' as any,
+      } as any);
     }
 
     return true;

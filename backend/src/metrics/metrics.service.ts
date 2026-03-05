@@ -26,15 +26,18 @@ export class MetricsService {
    * War Room aggregate: returns total sales, ad spend, TACOS, stockout SKU count, etc.
    */
   async getWarRoomMetrics(companyId: string, query: WarRoomQueryDto) {
-    const dateFilter = this.buildDateFilter(query.startDate, query.endDate);
-    const storeFilter = query.storeId ? 'AND store_id = :storeId' : '';
-    const siteFilter = query.siteId ? 'AND site_id = :siteId' : '';
-    const extraWhere = `${storeFilter} ${siteFilter}`;
     const params: any = { companyId };
     if (query.storeId) params.storeId = query.storeId;
     if (query.siteId) params.siteId = query.siteId;
     if (query.startDate) params.startDate = query.startDate;
     if (query.endDate) params.endDate = query.endDate;
+
+    const buildExtraWhere = (alias: string) => {
+      const parts: string[] = [];
+      if (query.storeId) parts.push(`AND ${alias}.storeId = :storeId`);
+      if (query.siteId) parts.push(`AND ${alias}.siteId = :siteId`);
+      return parts.join(' ');
+    };
 
     // Total sales
     const salesResult = await this.salesRepo
@@ -42,7 +45,7 @@ export class MetricsService {
       .select('COALESCE(SUM(s.orderedRevenue), 0)', 'totalRevenue')
       .addSelect('COALESCE(SUM(s.unitsOrdered), 0)', 'totalUnits')
       .addSelect('COALESCE(AVG(s.conversionRate), 0)', 'avgConversionRate')
-      .where(`s.companyId = :companyId ${extraWhere} ${dateFilter}`, params)
+      .where(`s.companyId = :companyId ${buildExtraWhere('s')} ${this.buildDateFilter('s', query.startDate, query.endDate)}`, params)
       .getRawOne();
 
     // Total ads
@@ -52,14 +55,14 @@ export class MetricsService {
       .addSelect('COALESCE(SUM(a.adRevenue), 0)', 'totalAdRevenue')
       .addSelect('COALESCE(SUM(a.impressions), 0)', 'totalImpressions')
       .addSelect('COALESCE(SUM(a.clicks), 0)', 'totalClicks')
-      .where(`a.companyId = :companyId ${extraWhere} ${dateFilter}`, params)
+      .where(`a.companyId = :companyId ${buildExtraWhere('a')} ${this.buildDateFilter('a', query.startDate, query.endDate)}`, params)
       .getRawOne();
 
     // Stockout count (latest date)
     const stockoutResult = await this.inventoryRepo
       .createQueryBuilder('i')
       .select('COUNT(DISTINCT i.skuId)', 'stockoutSkuCount')
-      .where(`i.companyId = :companyId AND i.isStockout = true ${extraWhere} ${dateFilter}`, params)
+      .where(`i.companyId = :companyId AND i.isStockout = true ${buildExtraWhere('i')} ${this.buildDateFilter('i', query.startDate, query.endDate)}`, params)
       .getRawOne();
 
     const totalRevenue = parseFloat(salesResult?.totalRevenue) || 0;
@@ -113,7 +116,6 @@ export class MetricsService {
    */
   async getSkuMetrics(companyId: string, skuId: string, startDate?: string, endDate?: string) {
     const params: any = { companyId, skuId };
-    const dateFilter = this.buildDateFilter(startDate, endDate);
     if (startDate) params.startDate = startDate;
     if (endDate) params.endDate = endDate;
 
@@ -121,7 +123,7 @@ export class MetricsService {
       .createQueryBuilder('s')
       .select('SUM(s.orderedRevenue)', 'revenue')
       .addSelect('SUM(s.unitsOrdered)', 'units')
-      .where(`s.companyId = :companyId AND s.skuId = :skuId ${dateFilter}`, params)
+      .where(`s.companyId = :companyId AND s.skuId = :skuId ${this.buildDateFilter('s', startDate, endDate)}`, params)
       .getRawOne();
 
     const ads = await this.adsRepo
@@ -130,7 +132,7 @@ export class MetricsService {
       .addSelect('SUM(a.adRevenue)', 'adRevenue')
       .addSelect('SUM(a.clicks)', 'clicks')
       .addSelect('SUM(a.impressions)', 'impressions')
-      .where(`a.companyId = :companyId AND a.skuId = :skuId ${dateFilter}`, params)
+      .where(`a.companyId = :companyId AND a.skuId = :skuId ${this.buildDateFilter('a', startDate, endDate)}`, params)
       .getRawOne();
 
     const inventory = await this.inventoryRepo.findOne({
@@ -155,10 +157,10 @@ export class MetricsService {
     };
   }
 
-  private buildDateFilter(startDate?: string, endDate?: string): string {
+  private buildDateFilter(alias: string, startDate?: string, endDate?: string): string {
     const parts: string[] = [];
-    if (startDate) parts.push('AND report_date >= :startDate');
-    if (endDate) parts.push('AND report_date <= :endDate');
+    if (startDate) parts.push(`AND ${alias}.reportDate >= :startDate`);
+    if (endDate) parts.push(`AND ${alias}.reportDate <= :endDate`);
     return parts.join(' ');
   }
 }

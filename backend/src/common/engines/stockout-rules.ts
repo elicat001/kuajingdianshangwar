@@ -137,7 +137,7 @@ export const SLOW_MOVING_RULE: Rule = {
         Math.min(4, ctx.history.salesDays.length - 3);
       evidence.recentAvgSales = recentAvg;
       evidence.olderAvgSales = olderAvg;
-      evidence.declinePct = ((olderAvg - recentAvg) / olderAvg) * 100;
+      evidence.declinePct = olderAvg > 0 ? ((olderAvg - recentAvg) / olderAvg) * 100 : 0;
     }
     return evidence;
   },

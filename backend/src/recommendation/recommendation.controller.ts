@@ -29,6 +29,15 @@ export class RecommendationController {
     return this.recService.queryRecommendations(companyId, query);
   }
 
+  @Get('sku/:skuId')
+  @ApiOperation({ summary: 'Get recommendations by SKU ID' })
+  getBySku(
+    @CurrentUser('companyId') companyId: string,
+    @Param('skuId') skuId: string,
+  ) {
+    return this.recService.getBySkuId(companyId, skuId);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get recommendation by ID' })
   getById(
@@ -54,14 +63,5 @@ export class RecommendationController {
     @Param('id') id: string,
   ) {
     return this.recService.reject(companyId, id);
-  }
-
-  @Get('sku/:skuId')
-  @ApiOperation({ summary: 'Get recommendations by SKU ID' })
-  getBySku(
-    @CurrentUser('companyId') companyId: string,
-    @Param('skuId') skuId: string,
-  ) {
-    return this.recService.getBySkuId(companyId, skuId);
   }
 }

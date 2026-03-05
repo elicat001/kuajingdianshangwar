@@ -1,16 +1,17 @@
 -- AI Commerce War OS - Seed Data
+-- Table names aligned with TypeORM Entity @Entity() decorators
 BEGIN;
 
 -- ============================================================
 -- Company
 -- ============================================================
-INSERT INTO company (id, name) VALUES
+INSERT INTO companies (id, name) VALUES
   ('a0000000-0000-0000-0000-000000000001', 'Demo Cross-Border Corp');
 
 -- ============================================================
 -- Roles
 -- ============================================================
-INSERT INTO role (id, name, description) VALUES
+INSERT INTO roles (id, name, description) VALUES
   ('b0000000-0000-0000-0000-000000000001', 'SUPER_ADMIN', 'Super Administrator'),
   ('b0000000-0000-0000-0000-000000000002', 'ADMIN', 'Company Administrator'),
   ('b0000000-0000-0000-0000-000000000003', 'MANAGER', 'Operations Manager'),
@@ -20,44 +21,27 @@ INSERT INTO role (id, name, description) VALUES
 -- ============================================================
 -- Permissions
 -- ============================================================
-INSERT INTO permission (id, resource, action) VALUES
-  ('c0000000-0000-0000-0000-000000000001', 'alerts', 'read'),
-  ('c0000000-0000-0000-0000-000000000002', 'alerts', 'write'),
-  ('c0000000-0000-0000-0000-000000000003', 'actions', 'read'),
-  ('c0000000-0000-0000-0000-000000000004', 'actions', 'write'),
-  ('c0000000-0000-0000-0000-000000000005', 'actions', 'approve'),
-  ('c0000000-0000-0000-0000-000000000006', 'skus', 'read'),
-  ('c0000000-0000-0000-0000-000000000007', 'skus', 'write'),
-  ('c0000000-0000-0000-0000-000000000008', 'settings', 'read'),
-  ('c0000000-0000-0000-0000-000000000009', 'settings', 'write'),
-  ('c0000000-0000-0000-0000-000000000010', 'users', 'manage');
-
--- Admin has all permissions
-INSERT INTO role_permission (role_id, permission_id)
-SELECT 'b0000000-0000-0000-0000-000000000001', id FROM permission;
-INSERT INTO role_permission (role_id, permission_id)
-SELECT 'b0000000-0000-0000-0000-000000000002', id FROM permission;
-
--- Manager: alerts, actions, skus, settings read
-INSERT INTO role_permission (role_id, permission_id) VALUES
-  ('b0000000-0000-0000-0000-000000000003', 'c0000000-0000-0000-0000-000000000001'),
-  ('b0000000-0000-0000-0000-000000000003', 'c0000000-0000-0000-0000-000000000002'),
-  ('b0000000-0000-0000-0000-000000000003', 'c0000000-0000-0000-0000-000000000003'),
-  ('b0000000-0000-0000-0000-000000000003', 'c0000000-0000-0000-0000-000000000004'),
-  ('b0000000-0000-0000-0000-000000000003', 'c0000000-0000-0000-0000-000000000005'),
-  ('b0000000-0000-0000-0000-000000000003', 'c0000000-0000-0000-0000-000000000006'),
-  ('b0000000-0000-0000-0000-000000000003', 'c0000000-0000-0000-0000-000000000007'),
-  ('b0000000-0000-0000-0000-000000000003', 'c0000000-0000-0000-0000-000000000008');
+INSERT INTO permissions (id, role_id, resource, action) VALUES
+  ('c0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000002', 'alerts', 'read'),
+  ('c0000000-0000-0000-0000-000000000002', 'b0000000-0000-0000-0000-000000000002', 'alerts', 'write'),
+  ('c0000000-0000-0000-0000-000000000003', 'b0000000-0000-0000-0000-000000000002', 'actions', 'read'),
+  ('c0000000-0000-0000-0000-000000000004', 'b0000000-0000-0000-0000-000000000002', 'actions', 'write'),
+  ('c0000000-0000-0000-0000-000000000005', 'b0000000-0000-0000-0000-000000000002', 'actions', 'approve'),
+  ('c0000000-0000-0000-0000-000000000006', 'b0000000-0000-0000-0000-000000000002', 'skus', 'read'),
+  ('c0000000-0000-0000-0000-000000000007', 'b0000000-0000-0000-0000-000000000002', 'skus', 'write'),
+  ('c0000000-0000-0000-0000-000000000008', 'b0000000-0000-0000-0000-000000000002', 'settings', 'read'),
+  ('c0000000-0000-0000-0000-000000000009', 'b0000000-0000-0000-0000-000000000002', 'settings', 'write'),
+  ('c0000000-0000-0000-0000-000000000010', 'b0000000-0000-0000-0000-000000000002', 'users', 'manage');
 
 -- ============================================================
--- Users (password: admin123 → bcrypt hash)
+-- Users (password: admin123 -> bcrypt hash)
 -- ============================================================
-INSERT INTO "user" (id, company_id, email, password_hash, name) VALUES
-  ('d0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000001', 'admin@demo.com', '$2b$10$EpRnTzVlqHNP0.fUbXUwSOyuiXe/QLSUG6xNekdHgTGmrpHEfIoxm', 'Admin'),
-  ('d0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000001', 'manager@demo.com', '$2b$10$EpRnTzVlqHNP0.fUbXUwSOyuiXe/QLSUG6xNekdHgTGmrpHEfIoxm', 'Manager Wang'),
-  ('d0000000-0000-0000-0000-000000000003', 'a0000000-0000-0000-0000-000000000001', 'operator@demo.com', '$2b$10$EpRnTzVlqHNP0.fUbXUwSOyuiXe/QLSUG6xNekdHgTGmrpHEfIoxm', 'Operator Li');
+INSERT INTO users (id, company_id, email, password_hash, display_name, name) VALUES
+  ('d0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000001', 'admin@demo.com', '$2b$10$EpRnTzVlqHNP0.fUbXUwSOyuiXe/QLSUG6xNekdHgTGmrpHEfIoxm', 'Admin', 'Admin'),
+  ('d0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000001', 'manager@demo.com', '$2b$10$EpRnTzVlqHNP0.fUbXUwSOyuiXe/QLSUG6xNekdHgTGmrpHEfIoxm', 'Manager Wang', 'Manager Wang'),
+  ('d0000000-0000-0000-0000-000000000003', 'a0000000-0000-0000-0000-000000000001', 'operator@demo.com', '$2b$10$EpRnTzVlqHNP0.fUbXUwSOyuiXe/QLSUG6xNekdHgTGmrpHEfIoxm', 'Operator Li', 'Operator Li');
 
-INSERT INTO user_role (user_id, role_id) VALUES
+INSERT INTO user_roles (user_id, role_id) VALUES
   ('d0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000001'),
   ('d0000000-0000-0000-0000-000000000002', 'b0000000-0000-0000-0000-000000000003'),
   ('d0000000-0000-0000-0000-000000000003', 'b0000000-0000-0000-0000-000000000004');
@@ -65,17 +49,17 @@ INSERT INTO user_role (user_id, role_id) VALUES
 -- ============================================================
 -- Stores & Sites
 -- ============================================================
-INSERT INTO store (id, company_id, name, platform, seller_id) VALUES
+INSERT INTO stores (id, company_id, name, platform, seller_id) VALUES
   ('e0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000001', 'Demo US Store', 'AMAZON', 'A1SELLER001'),
   ('e0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000001', 'Demo UK Store', 'AMAZON', 'A1SELLER002');
 
-INSERT INTO site (id, company_id, code, name, currency, timezone) VALUES
+INSERT INTO sites (id, company_id, code, name, currency, timezone) VALUES
   ('f0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000001', 'US', 'United States', 'USD', 'America/Los_Angeles'),
   ('f0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000001', 'UK', 'United Kingdom', 'GBP', 'Europe/London');
 
-INSERT INTO store_site_binding (store_id, site_id, marketplace_id) VALUES
-  ('e0000000-0000-0000-0000-000000000001', 'f0000000-0000-0000-0000-000000000001', 'ATVPDKIKX0DER'),
-  ('e0000000-0000-0000-0000-000000000002', 'f0000000-0000-0000-0000-000000000002', 'A1F83G8C2ARO7P');
+INSERT INTO store_site_bindings (company_id, store_id, site_id) VALUES
+  ('a0000000-0000-0000-0000-000000000001', 'e0000000-0000-0000-0000-000000000001', 'f0000000-0000-0000-0000-000000000001'),
+  ('a0000000-0000-0000-0000-000000000001', 'e0000000-0000-0000-0000-000000000002', 'f0000000-0000-0000-0000-000000000002');
 
 -- ============================================================
 -- SKUs
@@ -95,7 +79,7 @@ INSERT INTO sku_master (id, company_id, sku, asin, store_id, site_id, title, cat
 -- ============================================================
 -- Competitors
 -- ============================================================
-INSERT INTO competitor (id, company_id, sku_id, competitor_asin, competitor_name, source) VALUES
+INSERT INTO competitors (id, company_id, sku_id, competitor_asin, competitor_name, source) VALUES
   ('20000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'B0AA1COMP1', 'SoundMax Headphones', 'manual'),
   ('20000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'B0AA2COMP2', 'AudioPro Wireless', 'manual'),
   ('20000000-0000-0000-0000-000000000003', 'a0000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000002', 'B0BB1COMP3', 'KeyMaster RGB KB', 'manual'),
@@ -103,7 +87,7 @@ INSERT INTO competitor (id, company_id, sku_id, competitor_asin, competitor_name
   ('20000000-0000-0000-0000-000000000005', 'a0000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000004', 'B0DD1COMP5', 'HydroFlask Bottle 32', 'manual');
 
 -- Competitor snapshots
-INSERT INTO competitor_snapshot (company_id, competitor_id, price, rank, rating, review_count, is_buybox, snapshot_at) VALUES
+INSERT INTO competitor_snapshots (company_id, competitor_id, price, rank, rating, review_count, is_in_stock, snapshot_at) VALUES
   ('a0000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001', 29.99, 150, 4.30, 2500, true, NOW() - INTERVAL '1 hour'),
   ('a0000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000002', 34.99, 220, 4.10, 1800, false, NOW() - INTERVAL '1 hour'),
   ('a0000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000003', 49.99, 80, 4.50, 3200, true, NOW() - INTERVAL '1 hour'),
@@ -113,54 +97,52 @@ INSERT INTO competitor_snapshot (company_id, competitor_id, price, rank, rating,
 -- ============================================================
 -- Config Thresholds
 -- ============================================================
-INSERT INTO config_threshold (company_id, key, value, description) VALUES
-  ('a0000000-0000-0000-0000-000000000001', 'stockout_days_high', 3, 'High severity stockout threshold (days)'),
-  ('a0000000-0000-0000-0000-000000000001', 'stockout_days_med', 7, 'Medium severity stockout threshold (days)'),
-  ('a0000000-0000-0000-0000-000000000001', 'slow_moving_days', 90, 'Slow-moving inventory threshold (days)'),
-  ('a0000000-0000-0000-0000-000000000001', 'ads_waste_spend', 50, 'Minimum spend to trigger waste alert (USD)'),
-  ('a0000000-0000-0000-0000-000000000001', 'ads_waste_acos', 50, 'ACOS threshold for waste alert (%)'),
-  ('a0000000-0000-0000-0000-000000000001', 'acos_anomaly_stddev', 2, 'Standard deviations for ACOS anomaly'),
-  ('a0000000-0000-0000-0000-000000000001', 'competitor_price_drop_pct', 10, 'Competitor price drop threshold (%)'),
-  ('a0000000-0000-0000-0000-000000000001', 'competitor_rank_change', 50, 'Competitor rank change threshold'),
-  ('a0000000-0000-0000-0000-000000000001', 'review_anomaly_multiplier', 3, 'Review growth anomaly multiplier'),
-  ('a0000000-0000-0000-0000-000000000001', 'price_max_delta_pct', 3, 'Max price change per action (%)'),
-  ('a0000000-0000-0000-0000-000000000001', 'price_min_margin_floor', 15, 'Minimum margin floor (%)'),
-  ('a0000000-0000-0000-0000-000000000001', 'price_cooldown_hours', 6, 'Price change cooldown (hours)'),
-  ('a0000000-0000-0000-0000-000000000001', 'price_max_changes_per_day', 2, 'Max price changes per day'),
-  ('a0000000-0000-0000-0000-000000000001', 'budget_max_delta_pct', 20, 'Max budget adjustment (%)'),
-  ('a0000000-0000-0000-0000-000000000001', 'batch_max_impact_usd', 5000, 'Max batch impact (USD)');
+INSERT INTO config_thresholds (company_id, metric_code, warn_value, critical_value, description) VALUES
+  ('a0000000-0000-0000-0000-000000000001', 'stockout_days', 7, 3, 'Stockout alert threshold (days of cover)'),
+  ('a0000000-0000-0000-0000-000000000001', 'slow_moving_days', 90, 120, 'Slow-moving inventory threshold (days)'),
+  ('a0000000-0000-0000-0000-000000000001', 'ads_waste_spend', 50, 100, 'Min spend to trigger waste alert (USD)'),
+  ('a0000000-0000-0000-0000-000000000001', 'ads_waste_acos', 40, 60, 'ACOS threshold for waste alert (%)'),
+  ('a0000000-0000-0000-0000-000000000001', 'acos_anomaly_stddev', 2, 3, 'Standard deviations for ACOS anomaly'),
+  ('a0000000-0000-0000-0000-000000000001', 'competitor_price_drop_pct', 5, 15, 'Competitor price drop threshold (%)'),
+  ('a0000000-0000-0000-0000-000000000001', 'competitor_rank_change', 30, 80, 'Competitor rank change threshold'),
+  ('a0000000-0000-0000-0000-000000000001', 'review_anomaly_multiplier', 3, 5, 'Review growth anomaly multiplier'),
+  ('a0000000-0000-0000-0000-000000000001', 'price_max_delta_pct', 3, 5, 'Max price change per action (%)'),
+  ('a0000000-0000-0000-0000-000000000001', 'price_min_margin_floor', 15, 10, 'Minimum margin floor (%)'),
+  ('a0000000-0000-0000-0000-000000000001', 'price_cooldown_hours', 6, 4, 'Price change cooldown (hours)'),
+  ('a0000000-0000-0000-0000-000000000001', 'budget_max_delta_pct', 20, 30, 'Max budget adjustment (%)'),
+  ('a0000000-0000-0000-0000-000000000001', 'batch_max_impact_usd', 5000, 10000, 'Max batch impact (USD)');
 
 -- ============================================================
 -- Sample Sales Data (last 7 days, daily for SKU 1)
 -- ============================================================
-INSERT INTO sales_fact (company_id, sku_id, store_id, site_id, period_type, period_start, units, revenue) VALUES
-  ('a0000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'e0000000-0000-0000-0000-000000000001', 'f0000000-0000-0000-0000-000000000001', 'DAILY', NOW() - INTERVAL '7 days', 45, 1345.55),
-  ('a0000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'e0000000-0000-0000-0000-000000000001', 'f0000000-0000-0000-0000-000000000001', 'DAILY', NOW() - INTERVAL '6 days', 52, 1554.48),
-  ('a0000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'e0000000-0000-0000-0000-000000000001', 'f0000000-0000-0000-0000-000000000001', 'DAILY', NOW() - INTERVAL '5 days', 38, 1136.62),
-  ('a0000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'e0000000-0000-0000-0000-000000000001', 'f0000000-0000-0000-0000-000000000001', 'DAILY', NOW() - INTERVAL '4 days', 60, 1793.40),
-  ('a0000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'e0000000-0000-0000-0000-000000000001', 'f0000000-0000-0000-0000-000000000001', 'DAILY', NOW() - INTERVAL '3 days', 55, 1643.45),
-  ('a0000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'e0000000-0000-0000-0000-000000000001', 'f0000000-0000-0000-0000-000000000001', 'DAILY', NOW() - INTERVAL '2 days', 48, 1434.72),
-  ('a0000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'e0000000-0000-0000-0000-000000000001', 'f0000000-0000-0000-0000-000000000001', 'DAILY', NOW() - INTERVAL '1 day', 42, 1255.38);
+INSERT INTO sales_facts (company_id, sku_id, store_id, site_id, report_date, units_ordered, ordered_revenue) VALUES
+  ('a0000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'e0000000-0000-0000-0000-000000000001', 'f0000000-0000-0000-0000-000000000001', CURRENT_DATE - 7, 45, 1345.55),
+  ('a0000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'e0000000-0000-0000-0000-000000000001', 'f0000000-0000-0000-0000-000000000001', CURRENT_DATE - 6, 52, 1554.48),
+  ('a0000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'e0000000-0000-0000-0000-000000000001', 'f0000000-0000-0000-0000-000000000001', CURRENT_DATE - 5, 38, 1136.62),
+  ('a0000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'e0000000-0000-0000-0000-000000000001', 'f0000000-0000-0000-0000-000000000001', CURRENT_DATE - 4, 60, 1793.40),
+  ('a0000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'e0000000-0000-0000-0000-000000000001', 'f0000000-0000-0000-0000-000000000001', CURRENT_DATE - 3, 55, 1643.45),
+  ('a0000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'e0000000-0000-0000-0000-000000000001', 'f0000000-0000-0000-0000-000000000001', CURRENT_DATE - 2, 48, 1434.72),
+  ('a0000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'e0000000-0000-0000-0000-000000000001', 'f0000000-0000-0000-0000-000000000001', CURRENT_DATE - 1, 42, 1255.38);
 
 -- Sample Ads Data
-INSERT INTO ads_fact (company_id, sku_id, store_id, site_id, campaign_id, adgroup_id, period_type, period_start, impressions, clicks, spend, orders, sales) VALUES
-  ('a0000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'e0000000-0000-0000-0000-000000000001', 'f0000000-0000-0000-0000-000000000001', 'CAMP001', 'AG001', 'DAILY', NOW() - INTERVAL '3 days', 15000, 450, 120.50, 18, 538.20),
-  ('a0000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'e0000000-0000-0000-0000-000000000001', 'f0000000-0000-0000-0000-000000000001', 'CAMP001', 'AG001', 'DAILY', NOW() - INTERVAL '2 days', 14500, 420, 115.80, 15, 448.50),
-  ('a0000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'e0000000-0000-0000-0000-000000000001', 'f0000000-0000-0000-0000-000000000001', 'CAMP001', 'AG001', 'DAILY', NOW() - INTERVAL '1 day', 16000, 480, 135.20, 20, 598.00),
-  ('a0000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000002', 'e0000000-0000-0000-0000-000000000001', 'f0000000-0000-0000-0000-000000000001', 'CAMP002', 'AG002', 'DAILY', NOW() - INTERVAL '1 day', 8000, 200, 85.00, 0, 0);
+INSERT INTO ads_facts (company_id, sku_id, store_id, site_id, report_date, campaign_id, adgroup_id, impressions, clicks, ad_spend, ad_orders, ad_revenue) VALUES
+  ('a0000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'e0000000-0000-0000-0000-000000000001', 'f0000000-0000-0000-0000-000000000001', CURRENT_DATE - 3, 'CAMP001', 'AG001', 15000, 450, 120.50, 18, 538.20),
+  ('a0000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'e0000000-0000-0000-0000-000000000001', 'f0000000-0000-0000-0000-000000000001', CURRENT_DATE - 2, 'CAMP001', 'AG001', 14500, 420, 115.80, 15, 448.50),
+  ('a0000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'e0000000-0000-0000-0000-000000000001', 'f0000000-0000-0000-0000-000000000001', CURRENT_DATE - 1, 'CAMP001', 'AG001', 16000, 480, 135.20, 20, 598.00),
+  ('a0000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000002', 'e0000000-0000-0000-0000-000000000001', 'f0000000-0000-0000-0000-000000000001', CURRENT_DATE - 1, 'CAMP002', 'AG002', 8000, 200, 85.00, 0, 0);
 
 -- Sample Inventory Data
-INSERT INTO inventory_fact (company_id, sku_id, store_id, site_id, period_type, period_start, available, inbound, reserved) VALUES
-  ('a0000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'e0000000-0000-0000-0000-000000000001', 'f0000000-0000-0000-0000-000000000001', 'DAILY', NOW(), 350, 200, 10),
-  ('a0000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000002', 'e0000000-0000-0000-0000-000000000001', 'f0000000-0000-0000-0000-000000000001', 'DAILY', NOW(), 15, 0, 2),
-  ('a0000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000003', 'e0000000-0000-0000-0000-000000000001', 'f0000000-0000-0000-0000-000000000001', 'DAILY', NOW(), 500, 0, 5),
-  ('a0000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000004', 'e0000000-0000-0000-0000-000000000001', 'f0000000-0000-0000-0000-000000000001', 'DAILY', NOW(), 8, 100, 0),
-  ('a0000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000005', 'e0000000-0000-0000-0000-000000000001', 'f0000000-0000-0000-0000-000000000001', 'DAILY', NOW(), 1200, 0, 20);
+INSERT INTO inventory_facts (company_id, sku_id, store_id, site_id, report_date, fulfillable_qty, inbound_qty, reserved_qty, is_stockout) VALUES
+  ('a0000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'e0000000-0000-0000-0000-000000000001', 'f0000000-0000-0000-0000-000000000001', CURRENT_DATE, 350, 200, 10, false),
+  ('a0000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000002', 'e0000000-0000-0000-0000-000000000001', 'f0000000-0000-0000-0000-000000000001', CURRENT_DATE, 15, 0, 2, false),
+  ('a0000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000003', 'e0000000-0000-0000-0000-000000000001', 'f0000000-0000-0000-0000-000000000001', CURRENT_DATE, 500, 0, 5, false),
+  ('a0000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000004', 'e0000000-0000-0000-0000-000000000001', 'f0000000-0000-0000-0000-000000000001', CURRENT_DATE, 8, 100, 0, false),
+  ('a0000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000005', 'e0000000-0000-0000-0000-000000000001', 'f0000000-0000-0000-0000-000000000001', CURRENT_DATE, 1200, 0, 20, false);
 
 -- ============================================================
 -- Sample Alerts
 -- ============================================================
-INSERT INTO alert (company_id, type, severity, status, sku_id, store_id, site_id, title, message, evidence_json, dedupe_key, window_start, window_end) VALUES
+INSERT INTO alerts (company_id, type, severity, status, sku_id, store_id, site_id, title, message, evidence_json, dedupe_key, window_start, window_end) VALUES
   ('a0000000-0000-0000-0000-000000000001', 'STOCKOUT', 'HIGH', 'OPEN', '10000000-0000-0000-0000-000000000002', 'e0000000-0000-0000-0000-000000000001', 'f0000000-0000-0000-0000-000000000001', 'KB-002-US: Critical Low Stock', 'Days of cover: 2.1 days. Immediate reorder needed.', '{"available": 15, "avg7d": 7.2, "daysOfCover": 2.1}', 'stockout_high_10000002_20260305', NOW() - INTERVAL '2 hours', NOW()),
   ('a0000000-0000-0000-0000-000000000001', 'STOCKOUT', 'MEDIUM', 'OPEN', '10000000-0000-0000-0000-000000000004', 'e0000000-0000-0000-0000-000000000001', 'f0000000-0000-0000-0000-000000000001', 'WB-004-US: Low Stock Warning', 'Days of cover: 5.3 days.', '{"available": 8, "avg7d": 1.5, "daysOfCover": 5.3}', 'stockout_med_10000004_20260305', NOW() - INTERVAL '1 hour', NOW()),
   ('a0000000-0000-0000-0000-000000000001', 'ADS_WASTE', 'HIGH', 'OPEN', '10000000-0000-0000-0000-000000000002', 'e0000000-0000-0000-0000-000000000001', 'f0000000-0000-0000-0000-000000000001', 'KB-002-US: Ad Spend with Zero Orders', 'Campaign CAMP002/AG002: $85 spent, 0 orders in last 24h.', '{"spend": 85, "orders": 0, "clicks": 200, "impressions": 8000}', 'adswaste_zero_10000002_20260305', NOW() - INTERVAL '30 minutes', NOW()),
@@ -169,7 +151,7 @@ INSERT INTO alert (company_id, type, severity, status, sku_id, store_id, site_id
 -- ============================================================
 -- Sample Recommendations
 -- ============================================================
-INSERT INTO recommendation (company_id, alert_id, sku_id, rationale, evidence_json, expected_gain, risk_level, suggested_actions, status)
+INSERT INTO recommendations (company_id, alert_id, sku_id, rationale, evidence_json, expected_gain, risk_level, suggested_actions, status)
 SELECT
   'a0000000-0000-0000-0000-000000000001',
   a.id,
@@ -188,7 +170,7 @@ SELECT
     WHEN 'COMPETITOR_PRICE_DROP' THEN '[{"type": "ADJUST_PRICE", "params": {"strategy": "defend_margin", "maxDeltaPct": 3}}]'::jsonb
   END,
   'PENDING'
-FROM alert a
+FROM alerts a
 WHERE a.company_id = 'a0000000-0000-0000-0000-000000000001';
 
 COMMIT;

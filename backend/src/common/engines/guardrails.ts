@@ -68,6 +68,14 @@ export const DEFAULT_BATCH_GUARDRAIL: Guardrail = {
   maxImpactUsd: 20000,
 };
 
+export const DEFAULT_GENERAL_GUARDRAIL: Guardrail = {
+  type: 'GENERAL',
+  maxDeltaPct: 20,
+  cooldownHours: 4,
+  maxChangesPerDay: 5,
+  maxImpactUsd: 3000,
+};
+
 // ─── GuardrailChecker ─────────────────────────────────────────
 
 export class GuardrailChecker {

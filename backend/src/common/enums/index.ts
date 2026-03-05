@@ -6,6 +6,8 @@ export enum AlertType {
   REVIEW_ANOMALY = 'REVIEW_ANOMALY',
   SLOW_MOVING = 'SLOW_MOVING',
   ACOS_ANOMALY = 'ACOS_ANOMALY',
+  MARGIN_BREACH = 'MARGIN_BREACH',
+  PRICE_WAR = 'PRICE_WAR',
 }
 
 export enum Severity {

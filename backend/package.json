@@ -27,6 +27,7 @@
     "@nestjs/jwt": "^11.0.2",
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.1.15",
+    "@nestjs/schedule": "^5.0.1",
     "@nestjs/swagger": "^11.2.6",
     "@nestjs/typeorm": "^11.0.0",
     "bcrypt": "^6.0.0",
@@ -51,12 +52,14 @@
     "@types/node": "^25.3.3",
     "@types/passport-jwt": "^4.0.1",
     "@types/passport-local": "^1.0.38",
+    "@types/supertest": "^7.2.0",
     "@types/uuid": "^10.0.0",
     "eslint": "^9.0.0",
     "jest": "^30.2.0",
     "prettier": "^3.0.0",
     "rimraf": "^5.0.0",
     "source-map-support": "^0.5.21",
+    "supertest": "^7.2.2",
     "ts-jest": "^29.4.6",
     "ts-loader": "^9.4.0",
     "ts-node": "^10.9.2",
@@ -65,13 +68,19 @@
     "typescript": "^5.9.3"
   },
   "jest": {
-    "moduleFileExtensions": ["js", "json", "ts"],
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "ts"
+    ],
     "rootDir": "src",
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
     },
-    "collectCoverageFrom": ["**/*.(t|j)s"],
+    "collectCoverageFrom": [
+      "**/*.(t|j)s"
+    ],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node"
   }

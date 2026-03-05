@@ -1,4 +1,4 @@
-import { AlertType, Severity, ActionType, ActionStatus, RecommendationStatus } from '../enums';
+import { AlertType, Severity, ActionType, ActionStatus, RecommendationStatus, RiskLevel } from '../enums';
 
 // ─── Interfaces ───────────────────────────────────────────────
 
@@ -56,7 +56,7 @@ export interface SuggestedAction {
   type: ActionType;
   label: string;
   params: Record<string, any>;
-  riskLevel: string;
+  riskLevel: RiskLevel | string;
 }
 
 export interface Rule {
