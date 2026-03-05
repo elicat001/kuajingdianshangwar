@@ -203,7 +203,7 @@ CREATE TABLE IF NOT EXISTS metric_snapshots (
   sku_id UUID REFERENCES sku_master(id),
   store_id UUID REFERENCES stores(id),
   site_id UUID REFERENCES sites(id),
-  window VARCHAR(20) NOT NULL,
+  "window" VARCHAR(20) NOT NULL,
   value DECIMAL(18,4),
   data JSONB,
   window_start TIMESTAMPTZ,
