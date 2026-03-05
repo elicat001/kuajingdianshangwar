@@ -1,0 +1,18 @@
+{
+  "name": "ai-commerce-war-os",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Cross-border E-commerce AI Operation System",
+  "scripts": {
+    "dev:backend": "cd backend && npm run start:dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "build:backend": "cd backend && npm run build",
+    "build:frontend": "cd frontend && npm run build",
+    "docker:up": "cd docker && docker-compose up -d",
+    "docker:down": "cd docker && docker-compose down",
+    "docker:build": "cd docker && docker-compose up -d --build",
+    "db:init": "cd docker && docker-compose exec -T postgres psql -U postgres -d ai_commerce_war -f /scripts/init-db.sql",
+    "db:seed": "cd docker && docker-compose exec -T postgres psql -U postgres -d ai_commerce_war -f /scripts/seed-data.sql",
+    "db:reset": "npm run db:init && npm run db:seed"
+  }
+}
