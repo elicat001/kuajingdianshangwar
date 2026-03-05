@@ -118,10 +118,8 @@ export class VerificationJob {
 
     const result = this.verificationEngine.verify(input);
 
-    const newStatus = result.recommendRollback ? 'VERIFIED' : 'VERIFIED';
-
     await this.actionRepo.update(action.id, {
-      status: newStatus as any,
+      status: 'VERIFIED' as any,
       verificationResult: {
         gain: result.gain,
         loss: result.loss,

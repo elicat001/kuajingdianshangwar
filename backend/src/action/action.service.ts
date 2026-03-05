@@ -88,21 +88,31 @@ export class ActionService {
       dto.decision === 'approved' ? ActionStatus.APPROVED : ActionStatus.REJECTED;
     this.assertTransition(action.status, targetStatus);
 
-    // Record approval
-    const approval = this.approvalRepo.create({
-      actionId: id,
-      companyId,
-      approverUserId: userId,
-      decision: dto.decision,
-      comment: dto.comment,
-      decidedAt: new Date(),
-    });
-    await this.approvalRepo.save(approval);
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+    try {
+      const approval = this.approvalRepo.create({
+        actionId: id,
+        companyId,
+        approverUserId: userId,
+        decision: dto.decision,
+        comment: dto.comment,
+        decidedAt: new Date(),
+      });
+      await queryRunner.manager.save(approval);
 
-    action.status = targetStatus;
-    const saved = await this.actionRepo.save(action);
-    await this.appendAudit(companyId, userId, 'Action', id, `APPROVE:${dto.decision}`);
-    return saved;
+      action.status = targetStatus;
+      const saved = await queryRunner.manager.save(action);
+      await queryRunner.commitTransaction();
+      await this.appendAudit(companyId, userId, 'Action', id, `APPROVE:${dto.decision}`);
+      return saved;
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
   }
 
   async executeAction(
@@ -116,22 +126,32 @@ export class ActionService {
     const targetStatus = error ? ActionStatus.EXECUTED_FAILED : ActionStatus.EXECUTED;
     this.assertTransition(action.status, targetStatus);
 
-    // Record execution
-    const execution = this.executionRepo.create({
-      actionId: id,
-      companyId,
-      executedBy: userId,
-      result,
-      error,
-      executedAt: new Date(),
-    });
-    await this.executionRepo.save(execution);
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+    try {
+      const execution = this.executionRepo.create({
+        actionId: id,
+        companyId,
+        executedBy: userId,
+        result,
+        error,
+        executedAt: new Date(),
+      });
+      await queryRunner.manager.save(execution);
 
-    action.status = targetStatus;
-    action.executedAt = new Date();
-    const saved = await this.actionRepo.save(action);
-    await this.appendAudit(companyId, userId, 'Action', id, 'EXECUTE');
-    return saved;
+      action.status = targetStatus;
+      action.executedAt = new Date();
+      const saved = await queryRunner.manager.save(action);
+      await queryRunner.commitTransaction();
+      await this.appendAudit(companyId, userId, 'Action', id, 'EXECUTE');
+      return saved;
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
   }
 
   async verifyAction(
@@ -159,19 +179,30 @@ export class ActionService {
     const action = await this.findByIdOrThrow(companyId, id);
     this.assertTransition(action.status, ActionStatus.ROLLED_BACK);
 
-    const rollback = this.rollbackRepo.create({
-      actionId: id,
-      companyId,
-      rolledBackBy: userId,
-      previousState,
-      rolledBackAt: new Date(),
-    });
-    await this.rollbackRepo.save(rollback);
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+    try {
+      const rollback = this.rollbackRepo.create({
+        actionId: id,
+        companyId,
+        rolledBackBy: userId,
+        previousState,
+        rolledBackAt: new Date(),
+      });
+      await queryRunner.manager.save(rollback);
 
-    action.status = ActionStatus.ROLLED_BACK;
-    const saved = await this.actionRepo.save(action);
-    await this.appendAudit(companyId, userId, 'Action', id, 'ROLLBACK');
-    return saved;
+      action.status = ActionStatus.ROLLED_BACK;
+      const saved = await queryRunner.manager.save(action);
+      await queryRunner.commitTransaction();
+      await this.appendAudit(companyId, userId, 'Action', id, 'ROLLBACK');
+      return saved;
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
   }
 
   async closeAction(companyId: string, userId: string, id: string) {

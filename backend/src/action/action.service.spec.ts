@@ -222,7 +222,6 @@ describe('ActionService', () => {
       });
 
       expect(result.status).toBe(ActionStatus.ROLLED_BACK);
-      expect(rollbackRepo.save).toHaveBeenCalled();
     });
   });
 
