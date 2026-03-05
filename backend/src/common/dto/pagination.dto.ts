@@ -34,17 +34,17 @@ export class PaginationDto {
 }
 
 export class PaginatedResult<T> {
-  items: T[];
+  data: T[];
   total: number;
   page: number;
-  limit: number;
+  pageSize: number;
   totalPages: number;
 
-  constructor(items: T[], total: number, page: number | undefined, limit: number | undefined) {
-    this.items = items;
+  constructor(data: T[], total: number, page: number | undefined, limit: number | undefined) {
+    this.data = data;
     this.total = total;
     this.page = page ?? 1;
-    this.limit = limit ?? 20;
-    this.totalPages = Math.ceil(total / this.limit);
+    this.pageSize = limit ?? 20;
+    this.totalPages = Math.ceil(total / this.pageSize);
   }
 }

@@ -10,7 +10,7 @@ interface AuthState {
   loading: boolean;
   error: string | null;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name: string) => Promise<void>;
+  register: (email: string, password: string, displayName: string, companyName?: string) => Promise<void>;
   logout: () => void;
   isAuthenticated: () => boolean;
 }
@@ -33,10 +33,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       throw new Error(message);
     }
   },
-  register: async (email: string, password: string, name: string) => {
+  register: async (email: string, password: string, displayName: string, companyName?: string) => {
     set({ loading: true, error: null });
     try {
-      const res = await api.post('/auth/register', { email, password, name });
+      const res = await api.post('/auth/register', { email, password, displayName, companyName: companyName || displayName });
       const { accessToken, user } = res.data;
       setToken(accessToken);
       set({ user, token: accessToken, loading: false });

@@ -5,7 +5,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
-  const { login } = useAuthStore();
+  const { login, loading } = useAuthStore();
   const router = useRouter();
 
   const onFinish = async (values: { email: string; password: string }) => {
@@ -33,7 +33,7 @@ export default function LoginPage() {
             <Input.Password prefix={<LockOutlined />} placeholder="密码" />
           </Form.Item>
           <Form.Item>
-            <Button type="primary" htmlType="submit" block style={{ background: '#0f3460', height: 44 }}>登 录</Button>
+            <Button type="primary" htmlType="submit" block loading={loading} style={{ background: '#0f3460', height: 44 }}>登 录</Button>
           </Form.Item>
         </Form>
       </Card>

@@ -52,7 +52,7 @@ describe('RecommendationService', () => {
 
       const result = await service.queryRecommendations(COMPANY_ID, query as any);
 
-      expect(result.items).toHaveLength(1);
+      expect(result.data).toHaveLength(1);
       expect(qb.andWhere).toHaveBeenCalledWith(
         'r.skuId = :skuId',
         { skuId: 'sku-1' },

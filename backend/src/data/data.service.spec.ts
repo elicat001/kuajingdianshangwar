@@ -172,7 +172,7 @@ describe('DataService', () => {
 
       const result = await service.querySkus(COMPANY_ID, query as any);
 
-      expect(result.items).toHaveLength(2);
+      expect(result.data).toHaveLength(2);
       expect(result.total).toBe(2);
       expect(result.page).toBe(1);
       expect(qb.where).toHaveBeenCalled();

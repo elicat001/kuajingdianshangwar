@@ -109,7 +109,7 @@ describe('AlertService', () => {
 
       const result = await service.queryAlerts(COMPANY_ID, query as any);
 
-      expect(result.items).toHaveLength(2);
+      expect(result.data).toHaveLength(2);
       expect(result.total).toBe(2);
       expect(qb.andWhere).toHaveBeenCalledTimes(3); // type, severity, status
     });
