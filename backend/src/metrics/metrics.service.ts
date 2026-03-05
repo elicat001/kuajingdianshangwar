@@ -83,6 +83,56 @@ export class MetricsService {
   }
 
   /**
+   * Trend data for war-room charts: daily sales and ads over N days
+   */
+  async getTrends(companyId: string, days: number) {
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+    const startStr = startDate.toISOString().slice(0, 10);
+
+    const salesTrend = await this.salesRepo
+      .createQueryBuilder('s')
+      .select('s.reportDate', 'date')
+      .addSelect('COALESCE(SUM(s.orderedRevenue), 0)', 'sales')
+      .addSelect('COALESCE(SUM(s.unitsOrdered), 0)', 'orders')
+      .where('s.companyId = :companyId AND s.reportDate >= :startDate', { companyId, startDate: startStr })
+      .groupBy('s.reportDate')
+      .orderBy('s.reportDate', 'ASC')
+      .getRawMany();
+
+    const adsTrend = await this.adsRepo
+      .createQueryBuilder('a')
+      .select('a.reportDate', 'date')
+      .addSelect('COALESCE(SUM(a.adSpend), 0)', 'spend')
+      .addSelect('COALESCE(SUM(a.adOrders), 0)', 'orders')
+      .where('a.companyId = :companyId AND a.reportDate >= :startDate', { companyId, startDate: startStr })
+      .groupBy('a.reportDate')
+      .orderBy('a.reportDate', 'ASC')
+      .getRawMany();
+
+    // Calculate ACOS per day for ads trend
+    const adsTrendWithAcos = adsTrend.map((row: any) => {
+      const spend = parseFloat(row.spend) || 0;
+      const orders = parseInt(row.orders) || 0;
+      return {
+        date: row.date,
+        spend,
+        orders,
+        acos: orders > 0 ? Math.round((spend / orders) * 100) / 100 : 0,
+      };
+    });
+
+    return {
+      salesTrend: salesTrend.map((row: any) => ({
+        date: row.date,
+        sales: parseFloat(row.sales) || 0,
+        orders: parseInt(row.orders) || 0,
+      })),
+      adsTrend: adsTrendWithAcos,
+    };
+  }
+
+  /**
    * Query metric snapshots with pagination
    */
   async queryMetrics(

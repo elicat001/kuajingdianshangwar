@@ -71,7 +71,7 @@ export const useActionStore = create<ActionState>((set, get) => ({
   },
   approveAction: async (id: string) => {
     try {
-      const res = await api.patch(`/actions/${id}/approve`);
+      const res = await api.patch(`/actions/${id}/approve`, { decision: 'approved' });
       set({
         actions: get().actions.map((a) => (a.id === id ? res.data : a)),
         currentAction: get().currentAction?.id === id ? res.data : get().currentAction,
@@ -82,7 +82,7 @@ export const useActionStore = create<ActionState>((set, get) => ({
   },
   rejectAction: async (id: string) => {
     try {
-      const res = await api.patch(`/actions/${id}/reject`);
+      const res = await api.patch(`/actions/${id}/approve`, { decision: 'rejected' });
       set({
         actions: get().actions.map((a) => (a.id === id ? res.data : a)),
         currentAction: get().currentAction?.id === id ? res.data : get().currentAction,

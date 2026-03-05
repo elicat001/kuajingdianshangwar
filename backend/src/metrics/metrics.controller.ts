@@ -23,6 +23,15 @@ export class MetricsController {
     return this.metricsService.getWarRoomMetrics(companyId, query);
   }
 
+  @Get('trends')
+  @ApiOperation({ summary: 'Get sales and ads trend data for charts' })
+  getTrends(
+    @CurrentUser('companyId') companyId: string,
+    @Query('days') days?: string,
+  ) {
+    return this.metricsService.getTrends(companyId, parseInt(days || '7', 10));
+  }
+
   @Get('snapshots')
   @ApiOperation({ summary: 'Query metric snapshots with pagination' })
   querySnapshots(

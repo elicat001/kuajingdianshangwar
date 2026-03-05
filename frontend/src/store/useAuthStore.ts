@@ -24,9 +24,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const res = await api.post('/auth/login', { email, password });
-      const { access_token, user } = res.data;
-      setToken(access_token);
-      set({ user, token: access_token, loading: false });
+      const { accessToken, user } = res.data;
+      setToken(accessToken);
+      set({ user, token: accessToken, loading: false });
     } catch (err: any) {
       const message = err.response?.data?.message || 'Login failed';
       set({ loading: false, error: message });
@@ -37,9 +37,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const res = await api.post('/auth/register', { email, password, name });
-      const { access_token, user } = res.data;
-      setToken(access_token);
-      set({ user, token: access_token, loading: false });
+      const { accessToken, user } = res.data;
+      setToken(accessToken);
+      set({ user, token: accessToken, loading: false });
     } catch (err: any) {
       const message = err.response?.data?.message || 'Registration failed';
       set({ loading: false, error: message });
