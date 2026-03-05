@@ -29,20 +29,19 @@ describe('AppController (e2e)', () => {
   let actionId: string;
 
   beforeAll(async () => {
-    // In a real E2E setup, override TypeORM config to use a test database.
-    // This file provides the structure for the test; you may need to configure
-    // a test database or use SQLite for in-memory testing.
     try {
       const moduleFixture: TestingModule = await Test.createTestingModule({
         imports: [AppModule],
       }).compile();
 
       app = moduleFixture.createNestApplication();
-      app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+      app.setGlobalPrefix('api');
+      app.useGlobalPipes(
+        new ValidationPipe({ whitelist: true, transform: true }),
+      );
       await app.init();
       httpServer = app.getHttpServer();
     } catch {
-      // If database is not available, skip the E2E test suite.
       console.warn('E2E tests skipped: could not connect to database.');
     }
   });
@@ -53,21 +52,16 @@ describe('AppController (e2e)', () => {
     }
   });
 
-  const skipIfNoApp = () => {
-    if (!app) {
-      return true;
-    }
-    return false;
-  };
+  const skipIfNoApp = () => !app;
 
   // ─── 1. Register + Login ────────────────────────────────────
 
   describe('1. Auth: Register + Login', () => {
-    it('POST /auth/register -> should register and return JWT', async () => {
+    it('POST /api/auth/register -> should register and return JWT', async () => {
       if (skipIfNoApp()) return;
 
       const res = await request(httpServer)
-        .post('/auth/register')
+        .post('/api/auth/register')
         .send({
           email: `e2e-${Date.now()}@test.com`,
           password: 'password123',
@@ -86,11 +80,11 @@ describe('AppController (e2e)', () => {
   // ─── 2. Data: Store -> Site -> SKU ──────────────────────────
 
   describe('2. Data: Store, Site, SKU', () => {
-    it('POST /data/stores -> should create store', async () => {
+    it('POST /api/data/stores -> should create store', async () => {
       if (skipIfNoApp()) return;
 
       const res = await request(httpServer)
-        .post('/data/stores')
+        .post('/api/data/stores')
         .set('Authorization', `Bearer ${jwt}`)
         .send({ name: 'E2E Store', platform: 'AMAZON' })
         .expect(201);
@@ -99,11 +93,11 @@ describe('AppController (e2e)', () => {
       expect(storeId).toBeDefined();
     });
 
-    it('POST /data/sites -> should create site', async () => {
+    it('POST /api/data/sites -> should create site', async () => {
       if (skipIfNoApp()) return;
 
       const res = await request(httpServer)
-        .post('/data/sites')
+        .post('/api/data/sites')
         .set('Authorization', `Bearer ${jwt}`)
         .send({
           name: 'Amazon US',
@@ -117,11 +111,11 @@ describe('AppController (e2e)', () => {
       expect(siteId).toBeDefined();
     });
 
-    it('POST /data/skus -> should create SKU', async () => {
+    it('POST /api/data/skus -> should create SKU', async () => {
       if (skipIfNoApp()) return;
 
       const res = await request(httpServer)
-        .post('/data/skus')
+        .post('/api/data/skus')
         .set('Authorization', `Bearer ${jwt}`)
         .send({
           sku: 'E2E-SKU-001',
@@ -140,11 +134,11 @@ describe('AppController (e2e)', () => {
   // ─── 3. Alerts ──────────────────────────────────────────────
 
   describe('3. Alerts: Create, Query, Acknowledge', () => {
-    it('POST /alerts -> should create alert', async () => {
+    it('POST /api/alerts -> should create alert', async () => {
       if (skipIfNoApp()) return;
 
       const res = await request(httpServer)
-        .post('/alerts')
+        .post('/api/alerts')
         .set('Authorization', `Bearer ${jwt}`)
         .send({
           type: 'STOCKOUT',
@@ -162,24 +156,25 @@ describe('AppController (e2e)', () => {
       expect(alertId).toBeDefined();
     });
 
-    it('GET /alerts -> should return alert list', async () => {
+    it('GET /api/alerts -> should return alert list', async () => {
       if (skipIfNoApp()) return;
 
       const res = await request(httpServer)
-        .get('/alerts')
+        .get('/api/alerts')
         .set('Authorization', `Bearer ${jwt}`)
         .query({ page: 1, limit: 10 })
         .expect(200);
 
-      expect(res.body.items.length).toBeGreaterThanOrEqual(1);
+      expect(res.body.data.length).toBeGreaterThanOrEqual(1);
     });
 
-    it('PATCH /alerts/:id/ack -> should acknowledge alert', async () => {
+    it('PATCH /api/alerts/:id/acknowledge -> should acknowledge alert', async () => {
       if (skipIfNoApp()) return;
 
       const res = await request(httpServer)
-        .patch(`/alerts/${alertId}/ack`)
+        .patch(`/api/alerts/${alertId}/acknowledge`)
         .set('Authorization', `Bearer ${jwt}`)
+        .send({})
         .expect(200);
 
       expect(res.body.status).toBe('ACKNOWLEDGED');
@@ -189,11 +184,11 @@ describe('AppController (e2e)', () => {
   // ─── 4. Recommendations ────────────────────────────────────
 
   describe('4. Recommendations: Create + Accept', () => {
-    it('POST /recommendations -> should create recommendation', async () => {
+    it('POST /api/recommendations -> should create recommendation', async () => {
       if (skipIfNoApp()) return;
 
       const res = await request(httpServer)
-        .post('/recommendations')
+        .post('/api/recommendations')
         .set('Authorization', `Bearer ${jwt}`)
         .send({
           alertId,
@@ -211,11 +206,11 @@ describe('AppController (e2e)', () => {
       expect(recommendationId).toBeDefined();
     });
 
-    it('PATCH /recommendations/:id/accept -> should accept', async () => {
+    it('PATCH /api/recommendations/:id/accept -> should accept', async () => {
       if (skipIfNoApp()) return;
 
       const res = await request(httpServer)
-        .patch(`/recommendations/${recommendationId}/accept`)
+        .patch(`/api/recommendations/${recommendationId}/accept`)
         .set('Authorization', `Bearer ${jwt}`)
         .expect(200);
 
@@ -226,11 +221,11 @@ describe('AppController (e2e)', () => {
   // ─── 5. Actions: Full Lifecycle ────────────────────────────
 
   describe('5. Actions: Create -> Submit -> Approve -> Execute -> Verify', () => {
-    it('POST /actions -> should create action', async () => {
+    it('POST /api/actions -> should create action', async () => {
       if (skipIfNoApp()) return;
 
       const res = await request(httpServer)
-        .post('/actions')
+        .post('/api/actions')
         .set('Authorization', `Bearer ${jwt}`)
         .send({
           type: 'ADJUST_PRICE',
@@ -246,22 +241,22 @@ describe('AppController (e2e)', () => {
       expect(res.body.status).toBe('DRAFT');
     });
 
-    it('PATCH /actions/:id/submit -> should submit', async () => {
+    it('PATCH /api/actions/:id/submit -> should submit', async () => {
       if (skipIfNoApp()) return;
 
       const res = await request(httpServer)
-        .patch(`/actions/${actionId}/submit`)
+        .patch(`/api/actions/${actionId}/submit`)
         .set('Authorization', `Bearer ${jwt}`)
         .expect(200);
 
       expect(res.body.status).toBe('SUBMITTED');
     });
 
-    it('PATCH /actions/:id/approve -> should approve', async () => {
+    it('PATCH /api/actions/:id/approve -> should approve', async () => {
       if (skipIfNoApp()) return;
 
       const res = await request(httpServer)
-        .patch(`/actions/${actionId}/approve`)
+        .patch(`/api/actions/${actionId}/approve`)
         .set('Authorization', `Bearer ${jwt}`)
         .send({ decision: 'approved', comment: 'Looks good' })
         .expect(200);
@@ -269,11 +264,11 @@ describe('AppController (e2e)', () => {
       expect(res.body.status).toBe('APPROVED');
     });
 
-    it('PATCH /actions/:id/execute -> should mark executed', async () => {
+    it('PATCH /api/actions/:id/execute -> should mark executed', async () => {
       if (skipIfNoApp()) return;
 
       const res = await request(httpServer)
-        .patch(`/actions/${actionId}/execute`)
+        .patch(`/api/actions/${actionId}/execute`)
         .set('Authorization', `Bearer ${jwt}`)
         .send({ result: { success: true } })
         .expect(200);
@@ -281,13 +276,13 @@ describe('AppController (e2e)', () => {
       expect(res.body.status).toBe('EXECUTED');
     });
 
-    it('PATCH /actions/:id/verify -> should verify', async () => {
+    it('PATCH /api/actions/:id/verify -> should verify', async () => {
       if (skipIfNoApp()) return;
 
       const res = await request(httpServer)
-        .patch(`/actions/${actionId}/verify`)
+        .patch(`/api/actions/${actionId}/verify`)
         .set('Authorization', `Bearer ${jwt}`)
-        .send({ gain: 50, loss: 5 })
+        .send({ verificationResult: { gain: 50, loss: 5, netImpact: 45 } })
         .expect(200);
 
       expect(res.body.status).toBe('VERIFIED');
@@ -297,11 +292,11 @@ describe('AppController (e2e)', () => {
   // ─── 6. Audit Logs ─────────────────────────────────────────
 
   describe('6. Audit Logs', () => {
-    it('GET /actions/audit-logs -> should return logs', async () => {
+    it('GET /api/actions/audit-logs -> should return logs', async () => {
       if (skipIfNoApp()) return;
 
       const res = await request(httpServer)
-        .get('/actions/audit-logs')
+        .get('/api/actions/audit-logs')
         .set('Authorization', `Bearer ${jwt}`)
         .expect(200);
 

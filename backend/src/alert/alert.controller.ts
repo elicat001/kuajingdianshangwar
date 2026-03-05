@@ -23,6 +23,15 @@ import { AckAlertDto } from './dto/ack-alert.dto';
 export class AlertController {
   constructor(private readonly alertService: AlertService) {}
 
+  @Post()
+  @ApiOperation({ summary: 'Create a new alert' })
+  createAlert(
+    @CurrentUser('companyId') companyId: string,
+    @Body() body: Partial<import('./entities/alert.entity').AlertEntity>,
+  ) {
+    return this.alertService.createAlert(companyId, body);
+  }
+
   @Get()
   @ApiOperation({ summary: 'Query alerts with pagination and filters' })
   queryAlerts(

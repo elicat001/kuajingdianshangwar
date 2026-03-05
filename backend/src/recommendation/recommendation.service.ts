@@ -17,6 +17,18 @@ export class RecommendationService {
     private readonly recRepo: Repository<RecommendationEntity>,
   ) {}
 
+  async createRecommendation(
+    companyId: string,
+    data: Partial<RecommendationEntity>,
+  ): Promise<RecommendationEntity> {
+    const rec = this.recRepo.create({
+      ...data,
+      companyId,
+      status: RecommendationStatus.PENDING,
+    });
+    return this.recRepo.save(rec);
+  }
+
   async queryRecommendations(
     companyId: string,
     query: QueryRecommendationDto,

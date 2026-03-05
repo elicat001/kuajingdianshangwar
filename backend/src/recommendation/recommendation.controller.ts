@@ -1,9 +1,11 @@
 import {
   Controller,
   Get,
+  Post,
   Patch,
   Param,
   Query,
+  Body,
   UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
@@ -19,6 +21,15 @@ import { QueryRecommendationDto } from './dto/query-recommendation.dto';
 @Controller('recommendations')
 export class RecommendationController {
   constructor(private readonly recService: RecommendationService) {}
+
+  @Post()
+  @ApiOperation({ summary: 'Create a new recommendation' })
+  create(
+    @CurrentUser('companyId') companyId: string,
+    @Body() body: Partial<import('./entities/recommendation.entity').RecommendationEntity>,
+  ) {
+    return this.recService.createRecommendation(companyId, body);
+  }
 
   @Get()
   @ApiOperation({ summary: 'Query recommendations with pagination' })
