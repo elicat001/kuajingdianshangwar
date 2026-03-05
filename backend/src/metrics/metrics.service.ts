@@ -69,16 +69,22 @@ export class MetricsService {
     const totalAdSpend = parseFloat(adsResult?.totalAdSpend) || 0;
     const tacos = totalRevenue > 0 ? (totalAdSpend / totalRevenue) * 100 : 0;
 
+    // Count total SKUs and active alerts for war room display
+    const skuCount = await this.salesRepo
+      .createQueryBuilder('s')
+      .select('COUNT(DISTINCT s.skuId)', 'cnt')
+      .where('s.companyId = :companyId', { companyId })
+      .getRawOne();
+
     return {
-      totalRevenue,
-      totalUnits: parseInt(salesResult?.totalUnits) || 0,
-      avgConversionRate: parseFloat(salesResult?.avgConversionRate) || 0,
-      totalAdSpend,
-      totalAdRevenue: parseFloat(adsResult?.totalAdRevenue) || 0,
-      totalImpressions: parseInt(adsResult?.totalImpressions) || 0,
-      totalClicks: parseInt(adsResult?.totalClicks) || 0,
+      totalSales: totalRevenue,
+      totalOrders: parseInt(salesResult?.totalUnits) || 0,
+      adsSpend: totalAdSpend,
       tacos: Math.round(tacos * 100) / 100,
-      stockoutSkuCount: parseInt(stockoutResult?.stockoutSkuCount) || 0,
+      stockoutSkus: parseInt(stockoutResult?.stockoutSkuCount) || 0,
+      avgDaysOfCover: 0,
+      totalSkus: parseInt(skuCount?.cnt) || 0,
+      activeAlerts: 0,
     };
   }
 
@@ -162,48 +168,66 @@ export class MetricsService {
   }
 
   /**
-   * Get SKU-level metrics summary
+   * Get SKU-level metrics summary with 7-day daily breakdown
    */
   async getSkuMetrics(companyId: string, skuId: string, startDate?: string, endDate?: string) {
-    const params: any = { companyId, skuId };
-    if (startDate) params.startDate = startDate;
+    // Default to last 7 days
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const start = startDate || sevenDaysAgo.toISOString().slice(0, 10);
+
+    const params: any = { companyId, skuId, startDate: start };
     if (endDate) params.endDate = endDate;
 
-    const sales = await this.salesRepo
+    // Daily sales for 7d array
+    const dailySales = await this.salesRepo
       .createQueryBuilder('s')
-      .select('SUM(s.orderedRevenue)', 'revenue')
-      .addSelect('SUM(s.unitsOrdered)', 'units')
-      .where(`s.companyId = :companyId AND s.skuId = :skuId ${this.buildDateFilter('s', startDate, endDate)}`, params)
-      .getRawOne();
+      .select('s.reportDate', 'date')
+      .addSelect('COALESCE(SUM(s.orderedRevenue), 0)', 'revenue')
+      .addSelect('COALESCE(SUM(s.unitsOrdered), 0)', 'units')
+      .where(`s.companyId = :companyId AND s.skuId = :skuId AND s.reportDate >= :startDate`, params)
+      .groupBy('s.reportDate')
+      .orderBy('s.reportDate', 'ASC')
+      .getRawMany();
 
-    const ads = await this.adsRepo
+    // Daily ads for 7d array
+    const dailyAds = await this.adsRepo
       .createQueryBuilder('a')
-      .select('SUM(a.adSpend)', 'adSpend')
-      .addSelect('SUM(a.adRevenue)', 'adRevenue')
-      .addSelect('SUM(a.clicks)', 'clicks')
-      .addSelect('SUM(a.impressions)', 'impressions')
-      .where(`a.companyId = :companyId AND a.skuId = :skuId ${this.buildDateFilter('a', startDate, endDate)}`, params)
-      .getRawOne();
+      .select('a.reportDate', 'date')
+      .addSelect('COALESCE(SUM(a.adSpend), 0)', 'spend')
+      .addSelect('COALESCE(SUM(a.adRevenue), 0)', 'adRevenue')
+      .where(`a.companyId = :companyId AND a.skuId = :skuId AND a.reportDate >= :startDate`, params)
+      .groupBy('a.reportDate')
+      .orderBy('a.reportDate', 'ASC')
+      .getRawMany();
 
     const inventory = await this.inventoryRepo.findOne({
       where: { companyId, skuId },
       order: { reportDate: 'DESC' },
     });
 
+    const sales7d = dailySales.map((r: any) => parseFloat(r.revenue) || 0);
+    const units7d = dailySales.map((r: any) => parseInt(r.units) || 0);
+    const adsSpend7d = dailyAds.map((r: any) => parseFloat(r.spend) || 0);
+    const acos7d = dailyAds.map((r: any) => {
+      const spend = parseFloat(r.spend) || 0;
+      const rev = parseFloat(r.adRevenue) || 0;
+      return rev > 0 ? Math.round((spend / rev) * 10000) / 100 : 0;
+    });
+
+    const totalRevenue = sales7d.reduce((a, b) => a + b, 0);
+    const totalAdSpend = adsSpend7d.reduce((a, b) => a + b, 0);
+    const tacos = totalRevenue > 0 ? Math.round((totalAdSpend / totalRevenue) * 10000) / 100 : 0;
+
     return {
-      revenue: parseFloat(sales?.revenue) || 0,
-      units: parseInt(sales?.units) || 0,
-      adSpend: parseFloat(ads?.adSpend) || 0,
-      adRevenue: parseFloat(ads?.adRevenue) || 0,
-      clicks: parseInt(ads?.clicks) || 0,
-      impressions: parseInt(ads?.impressions) || 0,
-      inventory: inventory
-        ? {
-            fulfillableQty: inventory.fulfillableQty,
-            daysOfSupply: inventory.daysOfSupply,
-            isStockout: inventory.isStockout,
-          }
-        : null,
+      sales7d,
+      adsSpend7d,
+      acos7d,
+      units7d,
+      daysOfCover: inventory?.daysOfSupply ?? 0,
+      tacos,
+      revenue: totalRevenue,
+      profit: 0,
     };
   }
 

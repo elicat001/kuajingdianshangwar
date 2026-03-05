@@ -127,7 +127,11 @@ export class DataService {
       relations: ['store', 'site'],
     });
     if (!sku) throw new NotFoundException('SKU not found');
-    return sku;
+    return {
+      ...sku,
+      storeName: sku.store?.name ?? '',
+      siteName: sku.site?.name ?? '',
+    };
   }
 
   // ===== Competitor =====
