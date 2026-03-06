@@ -8,7 +8,7 @@ export enum RiskLevel { LOW='LOW', MEDIUM='MEDIUM', HIGH='HIGH' }
 export enum RecommendationStatus { PENDING='PENDING', ACCEPTED='ACCEPTED', REJECTED='REJECTED', EXPIRED='EXPIRED' }
 
 export interface Company { id: string; name: string; }
-export interface User { id: string; companyId: string; email: string; name: string; role: UserRole; }
+export interface User { id: string; companyId: string; email: string; name: string; displayName?: string; roles: UserRole[]; }
 export interface Store { id: string; companyId: string; name: string; platform: string; sellerId: string; status: string; }
 export interface Site { id: string; code: string; name: string; currency: string; timezone: string; }
 export interface Sku {
@@ -36,6 +36,7 @@ export interface Action {
 export interface WarRoomMetrics {
   totalSales: number; totalOrders: number; adsSpend: number; tacos: number;
   stockoutSkus: number; avgDaysOfCover: number; totalSkus: number; activeAlerts: number;
+  salesTrend?: number; adsSpendTrend?: number; tacosTrend?: number; stockoutTrend?: number;
 }
 export interface SkuMetrics {
   sales7d: number[]; adsSpend7d: number[]; acos7d: number[]; units7d: number[];
@@ -44,3 +45,4 @@ export interface SkuMetrics {
 export interface TrendPoint { date: string; sales: number; orders: number; }
 export interface AdsTrendPoint { date: string; spend: number; acos: number; orders: number; }
 export interface PaginatedResponse<T> { data: T[]; total: number; page: number; pageSize: number; }
+export interface ApiResponse<T> { code: number; message: string; data: T; }

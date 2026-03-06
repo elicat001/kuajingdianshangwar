@@ -8,6 +8,14 @@ export const databaseConfig = (): TypeOrmModuleOptions => ({
   password: process.env.DB_PASSWORD || 'postgres',
   database: process.env.DB_DATABASE || 'ai_commerce_war',
   entities: [__dirname + '/../**/*.entity{.ts,.js}'],
-  synchronize: process.env.NODE_ENV !== 'production',
+  // P0-08: Always false — use migrations for schema changes
+  synchronize: false,
   logging: process.env.NODE_ENV === 'development',
+  maxQueryExecutionTime: 1000,
+  extra: {
+    max: 20,
+    min: 5,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 5000,
+  },
 });

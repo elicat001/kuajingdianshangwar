@@ -1,7 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import Redis from 'ioredis';
 
 import { ActionEntity } from '../../action/entities/action.entity';
 import { MetricSnapshotEntity } from '../../metrics/entities/metric-snapshot.entity';
@@ -13,6 +14,8 @@ import {
   VerificationResult,
 } from '../engines/verification';
 import { ActionStatus } from '../enums';
+import { acquireLock } from '../utils/distributed-lock';
+import { REDIS_CLIENT } from '../redis/redis.module';
 
 @Injectable()
 export class VerificationJob {
@@ -22,6 +25,7 @@ export class VerificationJob {
   private readonly settlingPeriodHours = 6;
 
   constructor(
+    @Inject(REDIS_CLIENT) private readonly redis: Redis,
     @InjectRepository(ActionEntity)
     private readonly actionRepo: Repository<ActionEntity>,
     @InjectRepository(MetricSnapshotEntity)
@@ -32,9 +36,15 @@ export class VerificationJob {
 
   @Cron('0 */2 * * *')
   async handleVerification(): Promise<void> {
-    this.logger.log('Starting verification job...');
+    const release = await acquireLock(this.redis, 'lock:verification-job', 3600);
+    if (!release) {
+      this.logger.log('Verification job skipped — another instance holds the lock');
+      return;
+    }
 
     try {
+      this.logger.log('Starting verification job...');
+
       const cutoff = new Date();
       cutoff.setHours(cutoff.getHours() - this.settlingPeriodHours);
 
@@ -74,6 +84,8 @@ export class VerificationJob {
         `Verification job failed: ${(err as Error).message}`,
         (err as Error).stack,
       );
+    } finally {
+      await release();
     }
   }
 
@@ -122,7 +134,6 @@ export class VerificationJob {
 
     await this.actionRepo.update(action.id, {
       status: ActionStatus.VERIFIED,
-      // JSONB column requires `as any` for TypeORM's DeepPartial constraint
       verificationResult: {
         gain: result.gain,
         loss: result.loss,
@@ -136,7 +147,6 @@ export class VerificationJob {
   }
 
   private toMetricsSnapshot(raw: MetricSnapshotEntity): MetricsSnapshot {
-    // Metric data is stored in the JSONB `dimensions` column
     const data = (raw.dimensions as Record<string, any>) || {};
     return {
       price: data.price ?? 0,

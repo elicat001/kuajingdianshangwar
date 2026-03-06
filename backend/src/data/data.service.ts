@@ -15,6 +15,8 @@ import { CreateSiteDto } from './dto/create-site.dto';
 import { CreateSkuDto } from './dto/create-sku.dto';
 import { CreateCompetitorDto } from './dto/create-competitor.dto';
 import { UpdateThresholdDto } from './dto/update-threshold.dto';
+import { UpdateStoreDto } from './dto/update-store.dto';
+import { UpdateSkuDto } from './dto/update-sku.dto';
 import { QuerySkuDto } from './dto/query-sku.dto';
 import { PaginatedResult } from '../common/dto/pagination.dto';
 
@@ -61,6 +63,20 @@ export class DataService {
     });
     if (!store) throw new NotFoundException('Store not found');
     return store;
+  }
+
+  async updateStore(companyId: string, id: string, dto: UpdateStoreDto) {
+    const store = await this.storeRepo.findOne({ where: { id, companyId } });
+    if (!store) throw new NotFoundException('Store not found');
+    Object.assign(store, dto);
+    return this.storeRepo.save(store);
+  }
+
+  async deleteStore(companyId: string, id: string) {
+    const store = await this.storeRepo.findOne({ where: { id, companyId } });
+    if (!store) throw new NotFoundException('Store not found');
+    await this.storeRepo.remove(store);
+    return { deleted: true };
   }
 
   // ===== Site =====
@@ -132,6 +148,20 @@ export class DataService {
       storeName: sku.store?.name ?? '',
       siteName: sku.site?.name ?? '',
     };
+  }
+
+  async updateSku(companyId: string, id: string, dto: UpdateSkuDto) {
+    const sku = await this.skuRepo.findOne({ where: { id, companyId } });
+    if (!sku) throw new NotFoundException('SKU not found');
+    Object.assign(sku, dto);
+    return this.skuRepo.save(sku);
+  }
+
+  async deleteSku(companyId: string, id: string) {
+    const sku = await this.skuRepo.findOne({ where: { id, companyId } });
+    if (!sku) throw new NotFoundException('SKU not found');
+    await this.skuRepo.remove(sku);
+    return { deleted: true };
   }
 
   // ===== Competitor =====

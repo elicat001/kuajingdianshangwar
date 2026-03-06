@@ -1,6 +1,6 @@
 'use client';
-import { useEffect, useState } from 'react';
-import { Table, Card, Select, Row, Col } from 'antd';
+import { useEffect, useMemo, useState } from 'react';
+import { Table, Card, Select, Row, Col, Empty } from 'antd';
 import { useActionStore } from '@/store/useActionStore';
 import StatusTag from '@/components/common/StatusTag';
 import RiskTag from '@/components/common/RiskTag';
@@ -9,22 +9,26 @@ import Link from 'next/link';
 import dayjs from 'dayjs';
 
 export default function ActionsPage() {
-  const { actions, loading, fetchActions } = useActionStore();
+  const { actions, listLoading: loading, fetchActions } = useActionStore();
   const [filters, setFilters] = useState<Record<string, string>>({});
 
-  useEffect(() => { fetchActions(filters); }, [fetchActions, filters]);
+  const stableFilters = useMemo(() => filters, [JSON.stringify(filters)]);
+
+  useEffect(() => { fetchActions(stableFilters); }, [fetchActions, stableFilters]);
 
   const updateFilter = (key: string, value: string | undefined) => {
-    const next = { ...filters };
-    if (value) next[key] = value; else delete next[key];
-    setFilters(next);
+    setFilters((prev) => {
+      const next = { ...prev };
+      if (value) next[key] = value; else delete next[key];
+      return next;
+    });
   };
 
   const riskLabel = (score: number) => score >= 5 ? 'HIGH' : score >= 3 ? 'MEDIUM' : 'LOW';
 
   const columns = [
     { title: '类型', dataIndex: 'type', width: 180, render: (v: string) => v.replace(/_/g, ' ') },
-    { title: 'SKU', dataIndex: 'skuName', ellipsis: true, render: (v: string, r: any) => <Link href={`/actions/${r.id}`}>{v}</Link> },
+    { title: 'SKU', dataIndex: 'skuName', ellipsis: true, render: (v: string, r: { id: string }) => <Link href={`/actions/${r.id}`}>{v}</Link> },
     { title: '状态', dataIndex: 'status', width: 130, render: (v: string) => <StatusTag status={v} /> },
     { title: '风险', dataIndex: 'riskScore', width: 90, render: (v: number) => <RiskTag level={riskLabel(v)} /> },
     { title: '需审批', dataIndex: 'requiresApproval', width: 80, render: (v: boolean) => v ? '是' : '否' },
@@ -42,7 +46,11 @@ export default function ActionsPage() {
         </Row>
       </Card>
       <Card bordered={false}>
-        <Table dataSource={actions} columns={columns} rowKey="id" loading={loading} pagination={{ pageSize: 10 }} />
+        {!loading && actions.length === 0 ? (
+          <Empty description="暂无行动数据" />
+        ) : (
+          <Table dataSource={actions} columns={columns} rowKey="id" loading={loading} pagination={{ pageSize: 10 }} />
+        )}
       </Card>
     </div>
   );

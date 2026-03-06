@@ -1,33 +1,28 @@
 import { ActionType } from '../enums';
 
-// ─── Interfaces ───────────────────────────────────────────────
+// --- Interfaces ---
 
 export interface Guardrail {
   type: string;
-  /** Maximum price/bid/budget change percentage allowed */
   maxDeltaPct?: number;
-  /** Minimum margin floor percentage */
   minMarginFloor?: number;
-  /** Cooldown hours between consecutive changes */
   cooldownHours?: number;
-  /** Maximum number of changes per calendar day */
   maxChangesPerDay?: number;
-  /** Maximum total financial impact in USD for batch operations */
   maxImpactUsd?: number;
 }
 
 export interface ActionRequest {
   actionType: ActionType;
   skuId: string;
-  /** Delta percentage of the proposed change (e.g., -10 means 10% decrease) */
   deltaPct: number;
-  /** Current margin percentage after the proposed change */
   projectedMarginPct?: number;
-  /** Estimated financial impact in USD */
   estimatedImpactUsd?: number;
-  /** Timestamp of the last change for this SKU + action type */
+  /**
+   * P0-05: These fields are now server-populated only.
+   * The GuardrailService must query the database for accurate values.
+   * Do NOT accept these from client input.
+   */
   lastChangeAt?: Date;
-  /** How many changes already happened today for this SKU + action type */
   changesToday?: number;
 }
 
@@ -36,7 +31,7 @@ export interface GuardrailCheckResult {
   violations: string[];
 }
 
-// ─── Default Guardrails ───────────────────────────────────────
+// --- Default Guardrails ---
 
 export const DEFAULT_PRICE_GUARDRAIL: Guardrail = {
   type: 'PRICE',
@@ -76,16 +71,17 @@ export const DEFAULT_GENERAL_GUARDRAIL: Guardrail = {
   maxImpactUsd: 3000,
 };
 
-// ─── GuardrailChecker ─────────────────────────────────────────
+// --- GuardrailChecker ---
 
 export class GuardrailChecker {
   /**
    * Check a single action against the relevant guardrail.
+   * IMPORTANT: lastChangeAt and changesToday MUST be queried from DB by the caller.
    */
   check(action: ActionRequest, guardrail: Guardrail): GuardrailCheckResult {
     const violations: string[] = [];
 
-    // 1. Max delta percentage check
+    // 1. Max delta percentage
     if (
       guardrail.maxDeltaPct !== undefined &&
       Math.abs(action.deltaPct) > guardrail.maxDeltaPct
@@ -95,7 +91,7 @@ export class GuardrailChecker {
       );
     }
 
-    // 2. Minimum margin floor check (pricing only)
+    // 2. Minimum margin floor (pricing only)
     if (
       guardrail.minMarginFloor !== undefined &&
       action.projectedMarginPct !== undefined &&
@@ -106,22 +102,30 @@ export class GuardrailChecker {
       );
     }
 
-    // 3. Cooldown period check
+    // 3. Cooldown period
     if (
       guardrail.cooldownHours !== undefined &&
       action.lastChangeAt !== undefined
     ) {
-      const hoursSinceLastChange =
-        (Date.now() - action.lastChangeAt.getTime()) / (1000 * 60 * 60);
-      if (hoursSinceLastChange < guardrail.cooldownHours) {
-        const remainingHours = guardrail.cooldownHours - hoursSinceLastChange;
-        violations.push(
-          `Cooldown active: ${remainingHours.toFixed(1)} hours remaining (requires ${guardrail.cooldownHours}h between changes)`,
-        );
+      const lastChangeTime = action.lastChangeAt instanceof Date
+        ? action.lastChangeAt.getTime()
+        : new Date(action.lastChangeAt).getTime();
+
+      if (Number.isNaN(lastChangeTime)) {
+        violations.push('Invalid lastChangeAt timestamp — guardrail check blocked');
+      } else {
+        const hoursSinceLastChange =
+          (Date.now() - lastChangeTime) / (1000 * 60 * 60);
+        if (hoursSinceLastChange < guardrail.cooldownHours) {
+          const remainingHours = guardrail.cooldownHours - hoursSinceLastChange;
+          violations.push(
+            `Cooldown active: ${remainingHours.toFixed(1)} hours remaining (requires ${guardrail.cooldownHours}h between changes)`,
+          );
+        }
       }
     }
 
-    // 4. Max changes per day check
+    // 4. Max changes per day
     if (
       guardrail.maxChangesPerDay !== undefined &&
       action.changesToday !== undefined &&
@@ -132,7 +136,7 @@ export class GuardrailChecker {
       );
     }
 
-    // 5. Max financial impact check
+    // 5. Max financial impact
     if (
       guardrail.maxImpactUsd !== undefined &&
       action.estimatedImpactUsd !== undefined &&
@@ -159,7 +163,6 @@ export class GuardrailChecker {
   ): GuardrailCheckResult {
     const violations: string[] = [];
 
-    // Check each action individually
     for (const action of actions) {
       const guardrailType = this.resolveGuardrailType(action.actionType);
       const guardrail = guardrailMap[guardrailType];
@@ -167,15 +170,12 @@ export class GuardrailChecker {
         const result = this.check(action, guardrail);
         if (!result.passed) {
           violations.push(
-            ...result.violations.map(
-              (v) => `[${action.skuId}] ${v}`,
-            ),
+            ...result.violations.map((v) => `[${action.skuId}] ${v}`),
           );
         }
       }
     }
 
-    // Check batch-level guardrail (total impact)
     if (batchGuardrail && batchGuardrail.maxImpactUsd !== undefined) {
       const totalImpact = actions.reduce(
         (sum, a) => sum + Math.abs(a.estimatedImpactUsd ?? 0),
@@ -194,10 +194,7 @@ export class GuardrailChecker {
     };
   }
 
-  /**
-   * Map action type to the corresponding guardrail type.
-   */
-  private resolveGuardrailType(actionType: ActionType): string {
+  resolveGuardrailType(actionType: ActionType): string {
     switch (actionType) {
       case ActionType.ADJUST_PRICE:
         return 'PRICE';

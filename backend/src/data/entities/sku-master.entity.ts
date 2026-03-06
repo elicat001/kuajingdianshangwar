@@ -1,11 +1,16 @@
-import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, Column, ManyToOne, JoinColumn, Index, VersionColumn } from 'typeorm';
 import { BaseEntity } from '../../common/entities/base.entity';
 import { SkuStatus } from '../../common/enums';
 import { StoreEntity } from './store.entity';
 import { SiteEntity } from './site.entity';
 
 @Entity('sku_master')
+@Index('idx_sku_company', ['companyId'])
+@Index('idx_sku_store', ['storeId'])
+@Index('idx_sku_asin', ['asin'])
 export class SkuMasterEntity extends BaseEntity {
+  @VersionColumn()
+  version: number;
   @Column()
   sku: string;
 

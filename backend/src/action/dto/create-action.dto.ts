@@ -1,18 +1,20 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
-  IsString,
   IsOptional,
   IsEnum,
   IsObject,
   IsNumber,
   IsBoolean,
+  IsUUID,
+  Min,
+  Max,
 } from 'class-validator';
 import { ActionType } from '../../common/enums';
 
 export class CreateActionDto {
   @ApiPropertyOptional()
   @IsOptional()
-  @IsString()
+  @IsUUID()
   recommendationId?: string;
 
   @ApiProperty({ enum: ActionType })
@@ -32,6 +34,8 @@ export class CreateActionDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsNumber()
+  @Min(0)
+  @Max(100)
   riskScore?: number;
 
   @ApiPropertyOptional({ default: true })
@@ -41,16 +45,16 @@ export class CreateActionDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsString()
+  @IsUUID()
   skuId?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsString()
+  @IsUUID()
   storeId?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsString()
+  @IsUUID()
   siteId?: string;
 }

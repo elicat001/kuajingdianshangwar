@@ -1,7 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import Redis from 'ioredis';
 
 import { SkuMasterEntity } from '../../data/entities/sku-master.entity';
 import { AlertEntity } from '../../alert/entities/alert.entity';
@@ -17,6 +18,10 @@ import { PRICING_RULES } from '../engines/pricing-rules';
 import { generateDedupeKey } from '../utils/dedupe';
 import { calcDaysOfCover } from '../utils/metrics-calculator';
 import { SkuStatus, AlertStatus, RecommendationStatus } from '../enums';
+import { acquireLock } from '../utils/distributed-lock';
+import { REDIS_CLIENT } from '../redis/redis.module';
+
+const BATCH_SIZE = 500;
 
 @Injectable()
 export class HourlyAlertJob {
@@ -24,6 +29,7 @@ export class HourlyAlertJob {
   private readonly engine: RuleEngine;
 
   constructor(
+    @Inject(REDIS_CLIENT) private readonly redis: Redis,
     @InjectRepository(SkuMasterEntity)
     private readonly skuRepo: Repository<SkuMasterEntity>,
     @InjectRepository(AlertEntity)
@@ -54,38 +60,50 @@ export class HourlyAlertJob {
 
   @Cron(CronExpression.EVERY_HOUR)
   async handleHourlyAlerts(): Promise<void> {
-    this.logger.log('Starting hourly alert evaluation...');
+    const release = await acquireLock(this.redis, 'lock:hourly-alert-job', 3600);
+    if (!release) {
+      this.logger.log('Hourly alert job skipped — another instance holds the lock');
+      return;
+    }
 
     try {
-      const activeSKUs = await this.skuRepo.find({
+      this.logger.log('Starting hourly alert evaluation...');
+
+      const totalCount = await this.skuRepo.count({
         where: { status: SkuStatus.ACTIVE },
       });
-
-      this.logger.log(`Found ${activeSKUs.length} active SKUs to evaluate`);
+      this.logger.log(`Found ${totalCount} active SKUs to evaluate`);
 
       let totalAlerts = 0;
       let totalRecommendations = 0;
 
-      for (const sku of activeSKUs) {
-        try {
-          const context = await this.buildRuleContext(sku);
-          if (!context) continue;
+      for (let offset = 0; offset < totalCount; offset += BATCH_SIZE) {
+        const batch = await this.skuRepo.find({
+          where: { status: SkuStatus.ACTIVE },
+          skip: offset,
+          take: BATCH_SIZE,
+        });
 
-          const result = this.engine.evaluate(context);
+        for (const sku of batch) {
+          try {
+            const context = await this.buildRuleContext(sku);
+            if (!context) continue;
 
-          if (result.alerts.length === 0) continue;
+            const result = this.engine.evaluate(context);
+            if (result.alerts.length === 0) continue;
 
-          for (const alert of result.alerts) {
-            const written = await this.writeAlertIdempotent(alert);
-            if (written) {
-              totalAlerts++;
-              totalRecommendations += alert.recommendations.length;
+            for (const alert of result.alerts) {
+              const written = await this.writeAlertIdempotent(alert);
+              if (written) {
+                totalAlerts++;
+                totalRecommendations += alert.recommendations.length;
+              }
             }
+          } catch (err) {
+            this.logger.error(
+              `Error evaluating SKU ${sku.id}: ${(err as Error).message}`,
+            );
           }
-        } catch (err) {
-          this.logger.error(
-            `Error evaluating SKU ${sku.id}: ${(err as Error).message}`,
-          );
         }
       }
 
@@ -97,6 +115,8 @@ export class HourlyAlertJob {
         `Hourly alert job failed: ${(err as Error).message}`,
         (err as Error).stack,
       );
+    } finally {
+      await release();
     }
   }
 
@@ -127,7 +147,6 @@ export class HourlyAlertJob {
       .take(14)
       .getMany();
 
-    // Metric data is stored in the JSONB `dimensions` column
     const data = (latestMetrics.dimensions as Record<string, any>) || {};
     const prevData = (prevMetrics?.dimensions as Record<string, any>) || {};
 
@@ -169,7 +188,6 @@ export class HourlyAlertJob {
         priceWarMinDropCount: 2,
       },
       competitors: competitors.map((c) => {
-        // Competitor metrics are stored in the JSONB `metadata` column
         const meta = (c.metadata as Record<string, any>) || {};
         return {
           competitorAsin: c.asin ?? '',

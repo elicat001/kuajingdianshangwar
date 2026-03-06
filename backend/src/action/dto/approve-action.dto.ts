@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsIn, IsOptional, IsString } from 'class-validator';
+import { IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class ApproveActionDto {
   @ApiProperty({ enum: ['approved', 'rejected'] })
@@ -9,5 +9,6 @@ export class ApproveActionDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @MaxLength(2000)
   comment?: string;
 }

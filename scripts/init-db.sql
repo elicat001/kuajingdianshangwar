@@ -408,4 +408,18 @@ CREATE TRIGGER trg_audit_no_update
   BEFORE UPDATE OR DELETE ON audit_logs
   FOR EACH ROW EXECUTE FUNCTION prevent_audit_modification();
 
+-- ============================================================
+-- 9. Additional Indexes for Performance
+-- ============================================================
+
+CREATE INDEX IF NOT EXISTS idx_stores_company ON stores(company_id);
+CREATE INDEX IF NOT EXISTS idx_sites_company ON sites(company_id);
+CREATE INDEX IF NOT EXISTS idx_users_company ON users(company_id);
+CREATE INDEX IF NOT EXISTS idx_competitors_company ON competitors(company_id);
+CREATE INDEX IF NOT EXISTS idx_actions_created_by ON actions(created_by);
+CREATE INDEX IF NOT EXISTS idx_recommendations_company ON recommendations(company_id);
+CREATE INDEX IF NOT EXISTS idx_sales_company_date ON sales_facts(company_id, report_date);
+CREATE INDEX IF NOT EXISTS idx_ads_company_date ON ads_facts(company_id, report_date);
+CREATE INDEX IF NOT EXISTS idx_inv_company_date ON inventory_facts(company_id, report_date);
+
 COMMIT;

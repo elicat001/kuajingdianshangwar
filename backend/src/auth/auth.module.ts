@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { UserEntity } from './entities/user.entity';
@@ -30,6 +31,13 @@ import { LocalStrategy } from './strategies/local.strategy';
         secret: config.getOrThrow<string>('JWT_SECRET'),
         signOptions: { expiresIn: config.get<number>('JWT_EXPIRES_SECONDS', 86400) },
       }),
+    }),
+    // P0-03: Rate limiting for auth endpoints
+    ThrottlerModule.forRoot({
+      throttlers: [
+        { name: 'short', ttl: 60000, limit: 10 },
+        { name: 'medium', ttl: 900000, limit: 20 },
+      ],
     }),
   ],
   controllers: [AuthController],

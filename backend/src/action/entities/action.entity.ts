@@ -1,4 +1,4 @@
-import { Entity, Column, OneToMany } from 'typeorm';
+import { Entity, Column, OneToMany, VersionColumn } from 'typeorm';
 import { BaseEntity } from '../../common/entities/base.entity';
 import { ActionType, ActionStatus } from '../../common/enums';
 import { ApprovalEntity } from './approval.entity';
@@ -7,6 +7,8 @@ import { RollbackEntity } from './rollback.entity';
 
 @Entity('actions')
 export class ActionEntity extends BaseEntity {
+  @VersionColumn()
+  version: number;
   @Column({ name: 'recommendation_id', nullable: true })
   recommendationId: string;
 

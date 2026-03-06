@@ -6,8 +6,10 @@ import api from '@/lib/api';
 interface AlertState {
   alerts: Alert[];
   total: number;
-  loading: boolean;
-  error: string | null;
+  listLoading: boolean;
+  detailLoading: boolean;
+  listError: string | null;
+  detailError: string | null;
   currentAlert: Alert | null;
   fetchAlerts: (filters?: Record<string, string>) => Promise<void>;
   fetchAlertDetail: (id: string) => Promise<void>;
@@ -18,11 +20,13 @@ interface AlertState {
 export const useAlertStore = create<AlertState>((set, get) => ({
   alerts: [],
   total: 0,
-  loading: false,
-  error: null,
+  listLoading: false,
+  detailLoading: false,
+  listError: null,
+  detailError: null,
   currentAlert: null,
   fetchAlerts: async (filters?: Record<string, string>) => {
-    set({ loading: true, error: null });
+    set({ listLoading: true, listError: null });
     try {
       const params: Record<string, string> = { ...filters };
       const res = await api.get('/alerts', { params });
@@ -30,19 +34,19 @@ export const useAlertStore = create<AlertState>((set, get) => ({
       set({
         alerts: payload.data ?? payload,
         total: payload.total ?? (payload.data ? payload.data.length : 0),
-        loading: false,
+        listLoading: false,
       });
     } catch (err: any) {
-      set({ loading: false, error: err.response?.data?.message || 'Failed to fetch alerts' });
+      set({ listLoading: false, listError: err.response?.data?.message || 'Failed to fetch alerts' });
     }
   },
   fetchAlertDetail: async (id: string) => {
-    set({ loading: true, error: null });
+    set({ detailLoading: true, detailError: null });
     try {
       const res = await api.get(`/alerts/${id}`);
-      set({ currentAlert: res.data, loading: false });
+      set({ currentAlert: res.data, detailLoading: false });
     } catch (err: any) {
-      set({ loading: false, error: err.response?.data?.message || 'Failed to fetch alert detail' });
+      set({ detailLoading: false, detailError: err.response?.data?.message || 'Failed to fetch alert detail' });
     }
   },
   acknowledgeAlert: async (id: string) => {
@@ -53,7 +57,7 @@ export const useAlertStore = create<AlertState>((set, get) => ({
         currentAlert: get().currentAlert?.id === id ? res.data : get().currentAlert,
       });
     } catch (err: any) {
-      set({ error: err.response?.data?.message || 'Failed to acknowledge alert' });
+      set({ listError: err.response?.data?.message || 'Failed to acknowledge alert' });
     }
   },
   closeAlert: async (id: string) => {
@@ -64,7 +68,7 @@ export const useAlertStore = create<AlertState>((set, get) => ({
         currentAlert: get().currentAlert?.id === id ? res.data : get().currentAlert,
       });
     } catch (err: any) {
-      set({ error: err.response?.data?.message || 'Failed to close alert' });
+      set({ listError: err.response?.data?.message || 'Failed to close alert' });
     }
   },
 }));

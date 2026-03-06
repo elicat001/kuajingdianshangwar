@@ -23,6 +23,7 @@ describe('ActionService', () => {
   let executionRepo: MockRepository;
   let rollbackRepo: MockRepository;
   let auditRepo: MockRepository;
+  let mockManager: { save: jest.Mock; findOne: jest.Mock };
 
   const COMPANY_ID = 'company-123';
   const USER_ID = 'user-123';
@@ -33,6 +34,11 @@ describe('ActionService', () => {
     executionRepo = createMockRepository();
     rollbackRepo = createMockRepository();
     auditRepo = createMockRepository();
+
+    mockManager = {
+      save: jest.fn().mockImplementation((entity) => Promise.resolve(entity)),
+      findOne: jest.fn(),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -51,10 +57,7 @@ describe('ActionService', () => {
               commitTransaction: jest.fn(),
               rollbackTransaction: jest.fn(),
               release: jest.fn(),
-              manager: {
-                save: jest.fn().mockImplementation((entity) => Promise.resolve(entity)),
-                findOne: jest.fn(),
-              },
+              manager: mockManager,
             }),
           },
         },
@@ -107,6 +110,7 @@ describe('ActionService', () => {
         requiresApproval: true,
       });
       actionRepo.findOne.mockResolvedValue(action);
+      mockManager.findOne.mockResolvedValue(action);
       actionRepo.save.mockImplementation((a) => Promise.resolve({ ...a }));
       auditRepo.create.mockReturnValue({});
       auditRepo.save.mockResolvedValue({});
@@ -157,6 +161,7 @@ describe('ActionService', () => {
         status: ActionStatus.SUBMITTED,
       });
       actionRepo.findOne.mockResolvedValue(action);
+      mockManager.findOne.mockResolvedValue(action);
       actionRepo.save.mockImplementation((a) => Promise.resolve({ ...a }));
       approvalRepo.create.mockReturnValue({});
       approvalRepo.save.mockResolvedValue({});
@@ -182,6 +187,7 @@ describe('ActionService', () => {
         status: ActionStatus.APPROVED,
       });
       actionRepo.findOne.mockResolvedValue(action);
+      mockManager.findOne.mockResolvedValue(action);
       actionRepo.save.mockImplementation((a) => Promise.resolve({ ...a }));
       executionRepo.create.mockReturnValue({});
       executionRepo.save.mockResolvedValue({});
@@ -211,6 +217,7 @@ describe('ActionService', () => {
         params: { oldPrice: 29.99, newPrice: 24.99 },
       });
       actionRepo.findOne.mockResolvedValue(action);
+      mockManager.findOne.mockResolvedValue(action);
       actionRepo.save.mockImplementation((a) => Promise.resolve({ ...a }));
       rollbackRepo.create.mockReturnValue({});
       rollbackRepo.save.mockResolvedValue({});
@@ -235,6 +242,7 @@ describe('ActionService', () => {
         status: ActionStatus.DRAFT,
       });
       actionRepo.findOne.mockResolvedValue(action);
+      mockManager.findOne.mockResolvedValue(action);
 
       await expect(
         service.approveAction(COMPANY_ID, USER_ID, 'action-1', {
@@ -250,6 +258,7 @@ describe('ActionService', () => {
         status: ActionStatus.CLOSED,
       });
       actionRepo.findOne.mockResolvedValue(action);
+      mockManager.findOne.mockResolvedValue(action);
 
       await expect(
         service.submitAction(COMPANY_ID, USER_ID, 'action-1'),
@@ -263,6 +272,7 @@ describe('ActionService', () => {
         status: ActionStatus.APPROVED,
       });
       actionRepo.findOne.mockResolvedValue(action);
+      mockManager.findOne.mockResolvedValue(action);
 
       await expect(
         service.rollbackAction(COMPANY_ID, USER_ID, 'action-1', {}),
@@ -281,6 +291,7 @@ describe('ActionService', () => {
         requiresApproval: false,
       });
       actionRepo.findOne.mockResolvedValue(action);
+      mockManager.findOne.mockResolvedValue(action);
       actionRepo.save.mockImplementation((a) => Promise.resolve({ ...a }));
       auditRepo.create.mockReturnValue({});
       auditRepo.save.mockResolvedValue({});

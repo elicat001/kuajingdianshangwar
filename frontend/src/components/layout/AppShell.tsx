@@ -3,11 +3,21 @@ import { Layout, ConfigProvider } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
 import Sidebar from './Sidebar';
 import AppHeader from './Header';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+import { isAuthenticated } from '@/lib/auth';
+import ErrorBoundary from '@/components/common/ErrorBoundary';
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const isLogin = pathname === '/login';
+
+  useEffect(() => {
+    if (!isLogin && !isAuthenticated()) {
+      router.replace('/login');
+    }
+  }, [isLogin, router, pathname]);
 
   return (
     <ConfigProvider
@@ -25,7 +35,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <Layout>
             <AppHeader />
             <Layout.Content style={{ padding: 24, background: '#f5f5f5', overflow: 'auto' }}>
-              {children}
+              <ErrorBoundary>{children}</ErrorBoundary>
             </Layout.Content>
           </Layout>
         </Layout>

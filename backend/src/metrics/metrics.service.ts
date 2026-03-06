@@ -5,9 +5,21 @@ import { MetricSnapshotEntity } from './entities/metric-snapshot.entity';
 import { SalesFactEntity } from './entities/sales-fact.entity';
 import { AdsFactEntity } from './entities/ads-fact.entity';
 import { InventoryFactEntity } from './entities/inventory-fact.entity';
+import { AlertEntity } from '../alert/entities/alert.entity';
+import { AlertStatus } from '../common/enums';
 import { QueryMetricsDto } from './dto/query-metrics.dto';
 import { WarRoomQueryDto } from './dto/war-room-query.dto';
 import { PaginatedResult } from '../common/dto/pagination.dto';
+
+/** Safe number parser: returns 0 for null/undefined/NaN */
+const safeFloat = (val: unknown): number => {
+  const n = parseFloat(val as string);
+  return Number.isFinite(n) ? n : 0;
+};
+const safeInt = (val: unknown): number => {
+  const n = parseInt(val as string, 10);
+  return Number.isFinite(n) ? n : 0;
+};
 
 @Injectable()
 export class MetricsService {
@@ -20,13 +32,12 @@ export class MetricsService {
     private readonly adsRepo: Repository<AdsFactEntity>,
     @InjectRepository(InventoryFactEntity)
     private readonly inventoryRepo: Repository<InventoryFactEntity>,
+    @InjectRepository(AlertEntity)
+    private readonly alertRepo: Repository<AlertEntity>,
   ) {}
 
-  /**
-   * War Room aggregate: returns total sales, ad spend, TACOS, stockout SKU count, etc.
-   */
   async getWarRoomMetrics(companyId: string, query: WarRoomQueryDto) {
-    const params: any = { companyId };
+    const params: Record<string, unknown> = { companyId };
     if (query.storeId) params.storeId = query.storeId;
     if (query.siteId) params.siteId = query.siteId;
     if (query.startDate) params.startDate = query.startDate;
@@ -39,58 +50,69 @@ export class MetricsService {
       return parts.join(' ');
     };
 
-    // Total sales
     const salesResult = await this.salesRepo
       .createQueryBuilder('s')
       .select('COALESCE(SUM(s.orderedRevenue), 0)', 'totalRevenue')
       .addSelect('COALESCE(SUM(s.unitsOrdered), 0)', 'totalUnits')
       .addSelect('COALESCE(AVG(s.conversionRate), 0)', 'avgConversionRate')
-      .where(`s.companyId = :companyId ${buildExtraWhere('s')} ${this.buildDateFilter('s', query.startDate, query.endDate)}`, params)
+      .where(
+        `s.companyId = :companyId ${buildExtraWhere('s')} ${this.buildDateFilter('s', query.startDate, query.endDate)}`,
+        params,
+      )
       .getRawOne();
 
-    // Total ads
     const adsResult = await this.adsRepo
       .createQueryBuilder('a')
       .select('COALESCE(SUM(a.adSpend), 0)', 'totalAdSpend')
       .addSelect('COALESCE(SUM(a.adRevenue), 0)', 'totalAdRevenue')
       .addSelect('COALESCE(SUM(a.impressions), 0)', 'totalImpressions')
       .addSelect('COALESCE(SUM(a.clicks), 0)', 'totalClicks')
-      .where(`a.companyId = :companyId ${buildExtraWhere('a')} ${this.buildDateFilter('a', query.startDate, query.endDate)}`, params)
+      .where(
+        `a.companyId = :companyId ${buildExtraWhere('a')} ${this.buildDateFilter('a', query.startDate, query.endDate)}`,
+        params,
+      )
       .getRawOne();
 
-    // Stockout count (latest date)
     const stockoutResult = await this.inventoryRepo
       .createQueryBuilder('i')
       .select('COUNT(DISTINCT i.skuId)', 'stockoutSkuCount')
-      .where(`i.companyId = :companyId AND i.isStockout = true ${buildExtraWhere('i')} ${this.buildDateFilter('i', query.startDate, query.endDate)}`, params)
+      .where(
+        `i.companyId = :companyId AND i.isStockout = true ${buildExtraWhere('i')} ${this.buildDateFilter('i', query.startDate, query.endDate)}`,
+        params,
+      )
       .getRawOne();
 
-    const totalRevenue = parseFloat(salesResult?.totalRevenue) || 0;
-    const totalAdSpend = parseFloat(adsResult?.totalAdSpend) || 0;
+    // P0-07: NaN-safe number parsing
+    const totalRevenue = safeFloat(salesResult?.totalRevenue);
+    const totalAdSpend = safeFloat(adsResult?.totalAdSpend);
     const tacos = totalRevenue > 0 ? (totalAdSpend / totalRevenue) * 100 : 0;
 
-    // Count total SKUs and active alerts for war room display
     const skuCount = await this.salesRepo
       .createQueryBuilder('s')
       .select('COUNT(DISTINCT s.skuId)', 'cnt')
       .where('s.companyId = :companyId', { companyId })
       .getRawOne();
 
+    const activeAlertCount = await this.alertRepo
+      .createQueryBuilder('al')
+      .where('al.companyId = :companyId AND al.status = :status', {
+        companyId,
+        status: AlertStatus.OPEN,
+      })
+      .getCount();
+
     return {
       totalSales: totalRevenue,
-      totalOrders: parseInt(salesResult?.totalUnits) || 0,
+      totalOrders: safeInt(salesResult?.totalUnits),
       adsSpend: totalAdSpend,
       tacos: Math.round(tacos * 100) / 100,
-      stockoutSkus: parseInt(stockoutResult?.stockoutSkuCount) || 0,
+      stockoutSkus: safeInt(stockoutResult?.stockoutSkuCount),
       avgDaysOfCover: 0,
-      totalSkus: parseInt(skuCount?.cnt) || 0,
-      activeAlerts: 0,
+      totalSkus: safeInt(skuCount?.cnt),
+      activeAlerts: activeAlertCount,
     };
   }
 
-  /**
-   * Trend data for war-room charts: daily sales and ads over N days
-   */
   async getTrends(companyId: string, days: number) {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
@@ -101,7 +123,10 @@ export class MetricsService {
       .select('s.reportDate', 'date')
       .addSelect('COALESCE(SUM(s.orderedRevenue), 0)', 'sales')
       .addSelect('COALESCE(SUM(s.unitsOrdered), 0)', 'orders')
-      .where('s.companyId = :companyId AND s.reportDate >= :startDate', { companyId, startDate: startStr })
+      .where('s.companyId = :companyId AND s.reportDate >= :startDate', {
+        companyId,
+        startDate: startStr,
+      })
       .groupBy('s.reportDate')
       .orderBy('s.reportDate', 'ASC')
       .getRawMany();
@@ -110,37 +135,38 @@ export class MetricsService {
       .createQueryBuilder('a')
       .select('a.reportDate', 'date')
       .addSelect('COALESCE(SUM(a.adSpend), 0)', 'spend')
+      .addSelect('COALESCE(SUM(a.adRevenue), 0)', 'adRevenue')
       .addSelect('COALESCE(SUM(a.adOrders), 0)', 'orders')
-      .where('a.companyId = :companyId AND a.reportDate >= :startDate', { companyId, startDate: startStr })
+      .where('a.companyId = :companyId AND a.reportDate >= :startDate', {
+        companyId,
+        startDate: startStr,
+      })
       .groupBy('a.reportDate')
       .orderBy('a.reportDate', 'ASC')
       .getRawMany();
 
-    // Calculate ACOS per day for ads trend
-    const adsTrendWithAcos = adsTrend.map((row: any) => {
-      const spend = parseFloat(row.spend) || 0;
-      const orders = parseInt(row.orders) || 0;
+    const adsTrendWithAcos = adsTrend.map((row: Record<string, unknown>) => {
+      const spend = safeFloat(row.spend);
+      const adRevenue = safeFloat(row.adRevenue);
+      const orders = safeInt(row.orders);
       return {
         date: row.date,
         spend,
         orders,
-        acos: orders > 0 ? Math.round((spend / orders) * 100) / 100 : 0,
+        acos: adRevenue > 0 ? Math.round((spend / adRevenue) * 10000) / 100 : 0,
       };
     });
 
     return {
-      salesTrend: salesTrend.map((row: any) => ({
+      salesTrend: salesTrend.map((row: Record<string, unknown>) => ({
         date: row.date,
-        sales: parseFloat(row.sales) || 0,
-        orders: parseInt(row.orders) || 0,
+        sales: safeFloat(row.sales),
+        orders: safeInt(row.orders),
       })),
       adsTrend: adsTrendWithAcos,
     };
   }
 
-  /**
-   * Query metric snapshots with pagination
-   */
   async queryMetrics(
     companyId: string,
     query: QueryMetricsDto,
@@ -150,12 +176,16 @@ export class MetricsService {
       .where('m.companyId = :companyId', { companyId });
 
     if (query.skuId) qb.andWhere('m.skuId = :skuId', { skuId: query.skuId });
-    if (query.storeId) qb.andWhere('m.storeId = :storeId', { storeId: query.storeId });
+    if (query.storeId)
+      qb.andWhere('m.storeId = :storeId', { storeId: query.storeId });
     if (query.siteId) qb.andWhere('m.siteId = :siteId', { siteId: query.siteId });
-    if (query.metricCode) qb.andWhere('m.metricCode = :metricCode', { metricCode: query.metricCode });
+    if (query.metricCode)
+      qb.andWhere('m.metricCode = :metricCode', { metricCode: query.metricCode });
     if (query.window) qb.andWhere('m.window = :window', { window: query.window });
-    if (query.startDate) qb.andWhere('m.windowStart >= :startDate', { startDate: query.startDate });
-    if (query.endDate) qb.andWhere('m.windowEnd <= :endDate', { endDate: query.endDate });
+    if (query.startDate)
+      qb.andWhere('m.windowStart >= :startDate', { startDate: query.startDate });
+    if (query.endDate)
+      qb.andWhere('m.windowEnd <= :endDate', { endDate: query.endDate });
 
     qb.orderBy('m.windowStart', 'DESC');
 
@@ -167,36 +197,41 @@ export class MetricsService {
     return new PaginatedResult(items, total, query.page, query.limit);
   }
 
-  /**
-   * Get SKU-level metrics summary with 7-day daily breakdown
-   */
-  async getSkuMetrics(companyId: string, skuId: string, startDate?: string, endDate?: string) {
-    // Default to last 7 days
+  async getSkuMetrics(
+    companyId: string,
+    skuId: string,
+    startDate?: string,
+    endDate?: string,
+  ) {
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     const start = startDate || sevenDaysAgo.toISOString().slice(0, 10);
 
-    const params: any = { companyId, skuId, startDate: start };
+    const params: Record<string, unknown> = { companyId, skuId, startDate: start };
     if (endDate) params.endDate = endDate;
 
-    // Daily sales for 7d array
     const dailySales = await this.salesRepo
       .createQueryBuilder('s')
       .select('s.reportDate', 'date')
       .addSelect('COALESCE(SUM(s.orderedRevenue), 0)', 'revenue')
       .addSelect('COALESCE(SUM(s.unitsOrdered), 0)', 'units')
-      .where(`s.companyId = :companyId AND s.skuId = :skuId AND s.reportDate >= :startDate`, params)
+      .where(
+        `s.companyId = :companyId AND s.skuId = :skuId AND s.reportDate >= :startDate`,
+        params,
+      )
       .groupBy('s.reportDate')
       .orderBy('s.reportDate', 'ASC')
       .getRawMany();
 
-    // Daily ads for 7d array
     const dailyAds = await this.adsRepo
       .createQueryBuilder('a')
       .select('a.reportDate', 'date')
       .addSelect('COALESCE(SUM(a.adSpend), 0)', 'spend')
       .addSelect('COALESCE(SUM(a.adRevenue), 0)', 'adRevenue')
-      .where(`a.companyId = :companyId AND a.skuId = :skuId AND a.reportDate >= :startDate`, params)
+      .where(
+        `a.companyId = :companyId AND a.skuId = :skuId AND a.reportDate >= :startDate`,
+        params,
+      )
       .groupBy('a.reportDate')
       .orderBy('a.reportDate', 'ASC')
       .getRawMany();
@@ -206,18 +241,21 @@ export class MetricsService {
       order: { reportDate: 'DESC' },
     });
 
-    const sales7d = dailySales.map((r: any) => parseFloat(r.revenue) || 0);
-    const units7d = dailySales.map((r: any) => parseInt(r.units) || 0);
-    const adsSpend7d = dailyAds.map((r: any) => parseFloat(r.spend) || 0);
-    const acos7d = dailyAds.map((r: any) => {
-      const spend = parseFloat(r.spend) || 0;
-      const rev = parseFloat(r.adRevenue) || 0;
+    const sales7d = dailySales.map((r: Record<string, unknown>) => safeFloat(r.revenue));
+    const units7d = dailySales.map((r: Record<string, unknown>) => safeInt(r.units));
+    const adsSpend7d = dailyAds.map((r: Record<string, unknown>) => safeFloat(r.spend));
+    const acos7d = dailyAds.map((r: Record<string, unknown>) => {
+      const spend = safeFloat(r.spend);
+      const rev = safeFloat(r.adRevenue);
       return rev > 0 ? Math.round((spend / rev) * 10000) / 100 : 0;
     });
 
     const totalRevenue = sales7d.reduce((a, b) => a + b, 0);
     const totalAdSpend = adsSpend7d.reduce((a, b) => a + b, 0);
-    const tacos = totalRevenue > 0 ? Math.round((totalAdSpend / totalRevenue) * 10000) / 100 : 0;
+    const tacos =
+      totalRevenue > 0
+        ? Math.round((totalAdSpend / totalRevenue) * 10000) / 100
+        : 0;
 
     return {
       sales7d,
@@ -231,7 +269,11 @@ export class MetricsService {
     };
   }
 
-  private buildDateFilter(alias: string, startDate?: string, endDate?: string): string {
+  private buildDateFilter(
+    alias: string,
+    startDate?: string,
+    endDate?: string,
+  ): string {
     const parts: string[] = [];
     if (startDate) parts.push(`AND ${alias}.reportDate >= :startDate`);
     if (endDate) parts.push(`AND ${alias}.reportDate <= :endDate`);

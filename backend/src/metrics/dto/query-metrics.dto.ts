@@ -1,27 +1,28 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, IsDateString, IsEnum } from 'class-validator';
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsOptional, IsString, IsDateString, IsEnum, IsUUID, MaxLength } from 'class-validator';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 import { MetricWindow } from '../../common/enums';
 
 export class QueryMetricsDto extends PaginationDto {
   @ApiPropertyOptional()
   @IsOptional()
-  @IsString()
+  @IsUUID()
   skuId?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsString()
+  @IsUUID()
   storeId?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsString()
+  @IsUUID()
   siteId?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @MaxLength(100)
   metricCode?: string;
 
   @ApiPropertyOptional({ enum: MetricWindow })

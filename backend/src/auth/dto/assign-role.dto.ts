@@ -1,10 +1,10 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsEnum } from 'class-validator';
+import { IsEnum, IsUUID } from 'class-validator';
 import { UserRole } from '../../common/enums';
 
 export class AssignRoleDto {
   @ApiProperty({ description: 'User ID' })
-  @IsString()
+  @IsUUID()
   userId: string;
 
   @ApiProperty({ enum: UserRole })

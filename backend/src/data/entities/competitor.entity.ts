@@ -1,7 +1,8 @@
-import { Entity, Column } from 'typeorm';
+import { Entity, Column, Index } from 'typeorm';
 import { BaseEntity } from '../../common/entities/base.entity';
 
 @Entity('competitors')
+@Index('idx_competitors_company', ['companyId'])
 export class CompetitorEntity extends BaseEntity {
   @Column()
   name: string;

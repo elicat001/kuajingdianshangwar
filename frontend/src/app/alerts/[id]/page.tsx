@@ -10,21 +10,25 @@ import { type Recommendation } from '@/types';
 import dayjs from 'dayjs';
 
 export default function AlertDetailPage() {
-  const { id } = useParams();
+  const params = useParams();
+  const id = typeof params.id === 'string' ? params.id : Array.isArray(params.id) ? params.id[0] : '';
   const router = useRouter();
-  const { currentAlert, loading, fetchAlertDetail, acknowledgeAlert, closeAlert } = useAlertStore();
+  const { currentAlert, detailLoading: loading, fetchAlertDetail, acknowledgeAlert, closeAlert } = useAlertStore();
   const [recs, setRecs] = useState<Recommendation[]>([]);
   const [recsLoading, setRecsLoading] = useState(false);
 
   useEffect(() => {
-    fetchAlertDetail(id as string);
+    if (id) fetchAlertDetail(id);
   }, [id, fetchAlertDetail]);
 
   useEffect(() => {
+    if (!id) return;
     setRecsLoading(true);
     api.get('/recommendations', { params: { alertId: id } })
       .then((res) => setRecs(res.data?.data ?? res.data ?? []))
-      .catch(() => {})
+      .catch((err) => {
+        message.error(err.response?.data?.message || '加载建议失败');
+      })
       .finally(() => setRecsLoading(false));
   }, [id]);
 
@@ -32,6 +36,29 @@ export default function AlertDetailPage() {
 
   if (loading || recsLoading) return <Spin size="large" style={{ display: 'block', margin: '100px auto' }} />;
   if (!alert) return <Card>预警不存在</Card>;
+
+  const handleAck = async () => {
+    try {
+      await acknowledgeAlert(alert.id);
+      message.success('已确认');
+    } catch {
+      message.error('确认失败');
+    }
+  };
+
+  const handleClose = async () => {
+    try {
+      await closeAlert(alert.id);
+      message.success('已关闭');
+    } catch {
+      message.error('关闭失败');
+    }
+  };
+
+  const safeStringify = (val: unknown) => {
+    try { return JSON.stringify(val, null, 2); }
+    catch { return '{}'; }
+  };
 
   return (
     <div>
@@ -51,7 +78,7 @@ export default function AlertDetailPage() {
 
       <Card title="证据链" bordered={false} style={{ marginTop: 16 }}>
         <pre style={{ background: '#f6f8fa', padding: 16, borderRadius: 6, fontSize: 13, overflow: 'auto' }}>
-          {JSON.stringify(alert.evidenceJson, null, 2)}
+          {safeStringify(alert.evidenceJson)}
         </pre>
       </Card>
 
@@ -66,8 +93,8 @@ export default function AlertDetailPage() {
       )}
 
       <Space style={{ marginTop: 16 }}>
-        {alert.status === 'OPEN' && <Button type="primary" onClick={() => { acknowledgeAlert(alert.id); message.success('已确认'); }}>确认预警</Button>}
-        {alert.status !== 'CLOSED' && <Button danger onClick={() => { closeAlert(alert.id); message.success('已关闭'); }}>关闭预警</Button>}
+        {alert.status === 'OPEN' && <Button type="primary" onClick={handleAck}>确认预警</Button>}
+        {alert.status !== 'CLOSED' && <Button danger onClick={handleClose}>关闭预警</Button>}
       </Space>
     </div>
   );

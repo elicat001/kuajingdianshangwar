@@ -26,10 +26,10 @@ export default function LoginPage() {
           <p style={{ color: '#999', marginTop: 8 }}>跨境电商 AI 作战操作系统</p>
         </div>
         <Form onFinish={onFinish} size="large">
-          <Form.Item name="email" rules={[{ required: true, message: '请输入邮箱' }]}>
+          <Form.Item name="email" rules={[{ required: true, message: '请输入邮箱' }, { type: 'email', message: '请输入有效的邮箱格式' }]}>
             <Input prefix={<UserOutlined />} placeholder="admin@demo.com" />
           </Form.Item>
-          <Form.Item name="password" rules={[{ required: true, message: '请输入密码' }]}>
+          <Form.Item name="password" rules={[{ required: true, message: '请输入密码' }, { min: 6, message: '密码长度不能少于6位' }]}>
             <Input.Password prefix={<LockOutlined />} placeholder="密码" />
           </Form.Item>
           <Form.Item>

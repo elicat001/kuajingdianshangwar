@@ -1,15 +1,15 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, IsDateString } from 'class-validator';
+import { IsOptional, IsString, IsDateString, IsUUID } from 'class-validator';
 
 export class WarRoomQueryDto {
   @ApiPropertyOptional()
   @IsOptional()
-  @IsString()
+  @IsUUID()
   storeId?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsString()
+  @IsUUID()
   siteId?: string;
 
   @ApiPropertyOptional()

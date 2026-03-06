@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { message } from 'antd';
 import { getToken, removeToken } from './auth';
 
 const api = axios.create({
@@ -15,10 +16,21 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (res) => res,
   (error) => {
-    if (error.response?.status === 401) {
+    const status = error.response?.status;
+    const msg = error.response?.data?.message;
+
+    if (status === 401) {
       removeToken();
-      if (typeof window !== 'undefined') window.location.href = '/login';
+      if (typeof window !== 'undefined') {
+        message.error('登录已过期，请重新登录');
+        window.location.href = '/login';
+      }
+    } else if (status === 429) {
+      message.error('请求过于频繁，请稍后再试');
+    } else if (status >= 500) {
+      message.error(msg || '服务器错误，请稍后再试');
     }
+
     return Promise.reject(error);
   },
 );

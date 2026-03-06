@@ -1,14 +1,16 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsOptional, IsNumber, IsObject, MaxLength, MinLength, IsUUID, Min, IsUrl } from 'class-validator';
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsString, IsOptional, IsNumber, IsObject, IsEnum, MaxLength, MinLength, IsUUID, Min } from 'class-validator';
+import { SkuStatus } from '../../common/enums';
 import { Transform } from 'class-transformer';
 
-export class CreateSkuDto {
-  @ApiProperty()
+export class UpdateSkuDto {
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
   @MinLength(1)
   @MaxLength(100)
   @Transform(({ value }) => value?.trim())
-  sku: string;
+  sku?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -16,12 +18,13 @@ export class CreateSkuDto {
   @MaxLength(20)
   asin?: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
   @MinLength(1)
   @MaxLength(500)
   @Transform(({ value }) => value?.trim())
-  title: string;
+  title?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -47,9 +50,10 @@ export class CreateSkuDto {
   @Min(0)
   cost?: number;
 
-  @ApiProperty()
-  @IsUUID()
-  storeId: string;
+  @ApiPropertyOptional({ enum: SkuStatus })
+  @IsOptional()
+  @IsEnum(SkuStatus)
+  status?: SkuStatus;
 
   @ApiPropertyOptional()
   @IsOptional()

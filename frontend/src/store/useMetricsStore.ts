@@ -8,8 +8,10 @@ interface MetricsState {
   salesTrend: TrendPoint[];
   adsTrend: AdsTrendPoint[];
   skuMetrics: SkuMetrics | null;
-  loading: boolean;
-  error: string | null;
+  warRoomLoading: boolean;
+  skuMetricsLoading: boolean;
+  warRoomError: string | null;
+  skuMetricsError: string | null;
   fetchWarRoomMetrics: () => Promise<void>;
   fetchTrends: (days?: number) => Promise<void>;
   fetchSkuMetrics: (skuId: string) => Promise<void>;
@@ -20,10 +22,12 @@ export const useMetricsStore = create<MetricsState>((set) => ({
   salesTrend: [],
   adsTrend: [],
   skuMetrics: null,
-  loading: false,
-  error: null,
+  warRoomLoading: false,
+  skuMetricsLoading: false,
+  warRoomError: null,
+  skuMetricsError: null,
   fetchWarRoomMetrics: async () => {
-    set({ loading: true, error: null });
+    set({ warRoomLoading: true, warRoomError: null });
     try {
       const [metricsRes, trendsRes] = await Promise.all([
         api.get('/metrics/war-room'),
@@ -34,33 +38,33 @@ export const useMetricsStore = create<MetricsState>((set) => ({
         metrics: metricsRes.data,
         salesTrend: trends.salesTrend ?? trends.sales ?? [],
         adsTrend: trends.adsTrend ?? trends.ads ?? [],
-        loading: false,
+        warRoomLoading: false,
       });
     } catch (err: any) {
-      set({ loading: false, error: err.response?.data?.message || 'Failed to fetch war room metrics' });
+      set({ warRoomLoading: false, warRoomError: err.response?.data?.message || 'Failed to fetch war room metrics' });
     }
   },
   fetchTrends: async (days = 7) => {
-    set({ loading: true, error: null });
+    set({ warRoomLoading: true, warRoomError: null });
     try {
       const res = await api.get('/metrics/trends', { params: { days } });
       const trends = res.data;
       set({
         salesTrend: trends.salesTrend ?? trends.sales ?? [],
         adsTrend: trends.adsTrend ?? trends.ads ?? [],
-        loading: false,
+        warRoomLoading: false,
       });
     } catch (err: any) {
-      set({ loading: false, error: err.response?.data?.message || 'Failed to fetch trends' });
+      set({ warRoomLoading: false, warRoomError: err.response?.data?.message || 'Failed to fetch trends' });
     }
   },
   fetchSkuMetrics: async (skuId: string) => {
-    set({ loading: true, error: null });
+    set({ skuMetricsLoading: true, skuMetricsError: null });
     try {
       const res = await api.get(`/metrics/sku/${skuId}`);
-      set({ skuMetrics: res.data, loading: false });
+      set({ skuMetrics: res.data, skuMetricsLoading: false });
     } catch (err: any) {
-      set({ loading: false, error: err.response?.data?.message || 'Failed to fetch SKU metrics' });
+      set({ skuMetricsLoading: false, skuMetricsError: err.response?.data?.message || 'Failed to fetch SKU metrics' });
     }
   },
 }));

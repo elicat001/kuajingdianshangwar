@@ -6,6 +6,7 @@ import { MetricSnapshotEntity } from './entities/metric-snapshot.entity';
 import { SalesFactEntity } from './entities/sales-fact.entity';
 import { AdsFactEntity } from './entities/ads-fact.entity';
 import { InventoryFactEntity } from './entities/inventory-fact.entity';
+import { AlertEntity } from '../alert/entities/alert.entity';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { InventoryFactEntity } from './entities/inventory-fact.entity';
       SalesFactEntity,
       AdsFactEntity,
       InventoryFactEntity,
+      AlertEntity,
     ]),
   ],
   controllers: [MetricsController],

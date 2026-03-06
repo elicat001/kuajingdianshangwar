@@ -154,9 +154,12 @@ export class RuleEngine {
             triggeredAt: new Date(),
           });
         }
-      } catch {
-        // Silently skip rule evaluation errors to avoid breaking the loop.
-        // In production a logger should capture this.
+      } catch (error) {
+        // Log rule evaluation errors but continue evaluating remaining rules.
+        console.error(
+          `[RuleEngine] Failed to evaluate rule "${rule.id}" (${rule.name}):`,
+          error instanceof Error ? error.message : error,
+        );
       }
     }
 

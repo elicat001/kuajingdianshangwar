@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsEnum, IsString } from 'class-validator';
+import { IsOptional, IsEnum, IsString, IsUUID } from 'class-validator';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 import { AlertType, Severity, AlertStatus } from '../../common/enums';
 
@@ -21,11 +21,11 @@ export class QueryAlertDto extends PaginationDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsString()
+  @IsUUID()
   skuId?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsString()
+  @IsUUID()
   storeId?: string;
 }

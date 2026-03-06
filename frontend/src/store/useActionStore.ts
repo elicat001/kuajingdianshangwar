@@ -6,8 +6,10 @@ import api from '@/lib/api';
 interface ActionState {
   actions: Action[];
   total: number;
-  loading: boolean;
-  error: string | null;
+  listLoading: boolean;
+  detailLoading: boolean;
+  listError: string | null;
+  detailError: string | null;
   currentAction: Action | null;
   fetchActions: (filters?: Record<string, string>) => Promise<void>;
   fetchActionDetail: (id: string) => Promise<void>;
@@ -22,11 +24,13 @@ interface ActionState {
 export const useActionStore = create<ActionState>((set, get) => ({
   actions: [],
   total: 0,
-  loading: false,
-  error: null,
+  listLoading: false,
+  detailLoading: false,
+  listError: null,
+  detailError: null,
   currentAction: null,
   fetchActions: async (filters?: Record<string, string>) => {
-    set({ loading: true, error: null });
+    set({ listLoading: true, listError: null });
     try {
       const params: Record<string, string> = { ...filters };
       const res = await api.get('/actions', { params });
@@ -34,28 +38,28 @@ export const useActionStore = create<ActionState>((set, get) => ({
       set({
         actions: payload.data ?? payload,
         total: payload.total ?? (payload.data ? payload.data.length : 0),
-        loading: false,
+        listLoading: false,
       });
     } catch (err: any) {
-      set({ loading: false, error: err.response?.data?.message || 'Failed to fetch actions' });
+      set({ listLoading: false, listError: err.response?.data?.message || 'Failed to fetch actions' });
     }
   },
   fetchActionDetail: async (id: string) => {
-    set({ loading: true, error: null });
+    set({ detailLoading: true, detailError: null });
     try {
       const res = await api.get(`/actions/${id}`);
-      set({ currentAction: res.data, loading: false });
+      set({ currentAction: res.data, detailLoading: false });
     } catch (err: any) {
-      set({ loading: false, error: err.response?.data?.message || 'Failed to fetch action detail' });
+      set({ detailLoading: false, detailError: err.response?.data?.message || 'Failed to fetch action detail' });
     }
   },
   createAction: async (data: Partial<Action>) => {
-    set({ loading: true, error: null });
+    set({ listLoading: true, listError: null });
     try {
       const res = await api.post('/actions', data);
-      set({ actions: [...get().actions, res.data], loading: false });
+      set({ actions: [...get().actions, res.data], listLoading: false });
     } catch (err: any) {
-      set({ loading: false, error: err.response?.data?.message || 'Failed to create action' });
+      set({ listLoading: false, listError: err.response?.data?.message || 'Failed to create action' });
     }
   },
   submitAction: async (id: string) => {
@@ -66,7 +70,7 @@ export const useActionStore = create<ActionState>((set, get) => ({
         currentAction: get().currentAction?.id === id ? res.data : get().currentAction,
       });
     } catch (err: any) {
-      set({ error: err.response?.data?.message || 'Failed to submit action' });
+      set({ listError: err.response?.data?.message || 'Failed to submit action' });
     }
   },
   approveAction: async (id: string) => {
@@ -77,7 +81,7 @@ export const useActionStore = create<ActionState>((set, get) => ({
         currentAction: get().currentAction?.id === id ? res.data : get().currentAction,
       });
     } catch (err: any) {
-      set({ error: err.response?.data?.message || 'Failed to approve action' });
+      set({ listError: err.response?.data?.message || 'Failed to approve action' });
     }
   },
   rejectAction: async (id: string) => {
@@ -88,7 +92,7 @@ export const useActionStore = create<ActionState>((set, get) => ({
         currentAction: get().currentAction?.id === id ? res.data : get().currentAction,
       });
     } catch (err: any) {
-      set({ error: err.response?.data?.message || 'Failed to reject action' });
+      set({ listError: err.response?.data?.message || 'Failed to reject action' });
     }
   },
   executeAction: async (id: string) => {
@@ -99,7 +103,7 @@ export const useActionStore = create<ActionState>((set, get) => ({
         currentAction: get().currentAction?.id === id ? res.data : get().currentAction,
       });
     } catch (err: any) {
-      set({ error: err.response?.data?.message || 'Failed to execute action' });
+      set({ listError: err.response?.data?.message || 'Failed to execute action' });
     }
   },
   rollbackAction: async (id: string) => {
@@ -110,7 +114,7 @@ export const useActionStore = create<ActionState>((set, get) => ({
         currentAction: get().currentAction?.id === id ? res.data : get().currentAction,
       });
     } catch (err: any) {
-      set({ error: err.response?.data?.message || 'Failed to rollback action' });
+      set({ listError: err.response?.data?.message || 'Failed to rollback action' });
     }
   },
 }));

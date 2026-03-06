@@ -1,7 +1,8 @@
-import { Entity, Column } from 'typeorm';
+import { Entity, Column, Index } from 'typeorm';
 import { BaseEntity } from '../../common/entities/base.entity';
 
 @Entity('config_thresholds')
+@Index('idx_config_thresh_company', ['companyId'])
 export class ConfigThresholdEntity extends BaseEntity {
   @Column({ name: 'metric_code' })
   metricCode: string;

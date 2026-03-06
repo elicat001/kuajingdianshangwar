@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, IsEnum } from 'class-validator';
+import { IsOptional, IsEnum, IsUUID } from 'class-validator';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 import { ActionType, ActionStatus } from '../../common/enums';
 
@@ -16,16 +16,16 @@ export class QueryActionDto extends PaginationDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsString()
+  @IsUUID()
   skuId?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsString()
+  @IsUUID()
   storeId?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsString()
+  @IsUUID()
   createdBy?: string;
 }

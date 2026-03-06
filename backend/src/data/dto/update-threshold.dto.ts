@@ -1,24 +1,26 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsOptional, IsNumber, IsBoolean } from 'class-validator';
+import { IsString, IsOptional, IsNumber, IsBoolean, MaxLength, MinLength, IsUUID } from 'class-validator';
 
 export class UpdateThresholdDto {
   @ApiProperty()
   @IsString()
+  @MinLength(1)
+  @MaxLength(100)
   metricCode: string;
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsString()
+  @IsUUID()
   storeId?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsString()
+  @IsUUID()
   siteId?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsString()
+  @IsUUID()
   skuId?: string;
 
   @ApiProperty()

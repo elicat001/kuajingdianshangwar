@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsInt, IsOptional, Min, Max, IsString } from 'class-validator';
+import { IsInt, IsOptional, Min, Max, IsString, Matches, IsIn } from 'class-validator';
 
 export class PaginationDto {
   @ApiPropertyOptional({ default: 1, minimum: 1 })
@@ -21,11 +21,12 @@ export class PaginationDto {
   @ApiPropertyOptional({ description: 'Sort field' })
   @IsOptional()
   @IsString()
+  @Matches(/^[a-zA-Z][a-zA-Z0-9]*$/, { message: 'sortBy must be a valid field name' })
   sortBy?: string = 'createdAt';
 
   @ApiPropertyOptional({ enum: ['ASC', 'DESC'], default: 'DESC' })
   @IsOptional()
-  @IsString()
+  @IsIn(['ASC', 'DESC'])
   sortOrder?: 'ASC' | 'DESC' = 'DESC';
 
   get skip(): number {

@@ -3,6 +3,8 @@ import {
   Get,
   Post,
   Put,
+  Patch,
+  Delete,
   Body,
   Param,
   Query,
@@ -18,6 +20,8 @@ import { CreateSiteDto } from './dto/create-site.dto';
 import { CreateSkuDto } from './dto/create-sku.dto';
 import { CreateCompetitorDto } from './dto/create-competitor.dto';
 import { UpdateThresholdDto } from './dto/update-threshold.dto';
+import { UpdateStoreDto } from './dto/update-store.dto';
+import { UpdateSkuDto } from './dto/update-sku.dto';
 import { QuerySkuDto } from './dto/query-sku.dto';
 
 @ApiTags('Data')
@@ -50,6 +54,25 @@ export class DataController {
     @Param('id') id: string,
   ) {
     return this.dataService.getStoreById(companyId, id);
+  }
+
+  @Patch('stores/:id')
+  @ApiOperation({ summary: 'Update store' })
+  updateStore(
+    @CurrentUser('companyId') companyId: string,
+    @Param('id') id: string,
+    @Body() dto: UpdateStoreDto,
+  ) {
+    return this.dataService.updateStore(companyId, id, dto);
+  }
+
+  @Delete('stores/:id')
+  @ApiOperation({ summary: 'Delete store' })
+  deleteStore(
+    @CurrentUser('companyId') companyId: string,
+    @Param('id') id: string,
+  ) {
+    return this.dataService.deleteStore(companyId, id);
   }
 
   // ===== Site =====
@@ -105,6 +128,25 @@ export class DataController {
     @Param('id') id: string,
   ) {
     return this.dataService.getSkuById(companyId, id);
+  }
+
+  @Patch('skus/:id')
+  @ApiOperation({ summary: 'Update SKU' })
+  updateSku(
+    @CurrentUser('companyId') companyId: string,
+    @Param('id') id: string,
+    @Body() dto: UpdateSkuDto,
+  ) {
+    return this.dataService.updateSku(companyId, id, dto);
+  }
+
+  @Delete('skus/:id')
+  @ApiOperation({ summary: 'Delete SKU' })
+  deleteSku(
+    @CurrentUser('companyId') companyId: string,
+    @Param('id') id: string,
+  ) {
+    return this.dataService.deleteSku(companyId, id);
   }
 
   // ===== Competitor =====

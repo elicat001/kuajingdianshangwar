@@ -1,6 +1,6 @@
 'use client';
 import { useEffect } from 'react';
-import { Row, Col, Card, Table, Spin } from 'antd';
+import { Row, Col, Card, Table, Spin, Result } from 'antd';
 import { DollarOutlined, ShoppingCartOutlined, FundOutlined, WarningOutlined } from '@ant-design/icons';
 import KpiCard from '@/components/dashboard/KpiCard';
 import SalesTrendChart from '@/components/dashboard/SalesTrendChart';
@@ -14,21 +14,22 @@ import { useActionStore } from '@/store/useActionStore';
 import Link from 'next/link';
 
 export default function WarRoom() {
-  const { metrics, salesTrend, adsTrend, loading, fetchWarRoomMetrics } = useMetricsStore();
+  const { metrics, salesTrend, adsTrend, warRoomLoading: loading, warRoomError: error, fetchWarRoomMetrics } = useMetricsStore();
   const { alerts, fetchAlerts } = useAlertStore();
   const { actions, fetchActions } = useActionStore();
   useEffect(() => { fetchWarRoomMetrics(); fetchAlerts(); fetchActions(); }, [fetchWarRoomMetrics, fetchAlerts, fetchActions]);
 
   if (loading || !metrics) return <Spin size="large" style={{ display: 'block', margin: '100px auto' }} />;
+  if (error) return <Result status="error" title="数据加载失败" subTitle={error} />;
 
   return (
     <div>
       <h2 style={{ marginBottom: 20, color: '#16213e' }}>作战室 War Room</h2>
       <Row gutter={[16, 16]}>
-        <Col xs={24} sm={12} lg={6}><KpiCard title="总销售额" value={`$${metrics.totalSales.toLocaleString()}`} prefix={<DollarOutlined />} trend={8.2} /></Col>
-        <Col xs={24} sm={12} lg={6}><KpiCard title="广告花费" value={`$${metrics.adsSpend.toLocaleString()}`} prefix={<FundOutlined />} trend={-3.1} /></Col>
-        <Col xs={24} sm={12} lg={6}><KpiCard title="TACOS" value={`${metrics.tacos}%`} prefix={<ShoppingCartOutlined />} trend={-1.5} color="#3f8600" /></Col>
-        <Col xs={24} sm={12} lg={6}><KpiCard title="缺货SKU" value={metrics.stockoutSkus} prefix={<WarningOutlined />} color="#cf1322" /></Col>
+        <Col xs={24} sm={12} lg={6}><KpiCard title="总销售额" value={`$${metrics.totalSales.toLocaleString()}`} prefix={<DollarOutlined />} trend={metrics.salesTrend ?? undefined} /></Col>
+        <Col xs={24} sm={12} lg={6}><KpiCard title="广告花费" value={`$${metrics.adsSpend.toLocaleString()}`} prefix={<FundOutlined />} trend={metrics.adsSpendTrend ?? undefined} /></Col>
+        <Col xs={24} sm={12} lg={6}><KpiCard title="TACOS" value={`${metrics.tacos}%`} prefix={<ShoppingCartOutlined />} trend={metrics.tacosTrend ?? undefined} color="#3f8600" /></Col>
+        <Col xs={24} sm={12} lg={6}><KpiCard title="缺货SKU" value={metrics.stockoutSkus} prefix={<WarningOutlined />} trend={metrics.stockoutTrend ?? undefined} color="#cf1322" /></Col>
       </Row>
 
       <Row gutter={[16, 16]} style={{ marginTop: 16 }}>

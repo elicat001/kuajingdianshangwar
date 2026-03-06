@@ -1,7 +1,8 @@
-import { Entity, Column } from 'typeorm';
+import { Entity, Column, Index } from 'typeorm';
 import { BaseEntity } from '../../common/entities/base.entity';
 
 @Entity('sites')
+@Index('idx_sites_company', ['companyId'])
 export class SiteEntity extends BaseEntity {
   @Column()
   name: string;

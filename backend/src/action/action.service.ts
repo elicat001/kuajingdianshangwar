@@ -5,7 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
+import { Repository, DataSource, QueryRunner } from 'typeorm';
 import { ActionEntity } from './entities/action.entity';
 import { ApprovalEntity } from './entities/approval.entity';
 import { ExecutionEntity } from './entities/execution.entity';
@@ -63,18 +63,33 @@ export class ActionService {
   }
 
   async submitAction(companyId: string, userId: string, id: string) {
-    const action = await this.findByIdOrThrow(companyId, id);
-    this.assertTransition(action.status, ActionStatus.SUBMITTED);
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+    try {
+      const action = await queryRunner.manager.findOne(ActionEntity, {
+        where: { id, companyId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!action) throw new NotFoundException('Action not found');
+      this.assertTransition(action.status, ActionStatus.SUBMITTED);
 
-    // If no approval required, auto-approve
-    if (!action.requiresApproval) {
-      action.status = ActionStatus.APPROVED;
-    } else {
-      action.status = ActionStatus.SUBMITTED;
+      // If no approval required, auto-approve
+      if (!action.requiresApproval) {
+        action.status = ActionStatus.APPROVED;
+      } else {
+        action.status = ActionStatus.SUBMITTED;
+      }
+      const saved = await queryRunner.manager.save(action);
+      await this.appendAudit(companyId, userId, 'Action', id, 'SUBMIT', queryRunner);
+      await queryRunner.commitTransaction();
+      return saved;
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
     }
-    const saved = await this.actionRepo.save(action);
-    await this.appendAudit(companyId, userId, 'Action', id, 'SUBMIT');
-    return saved;
   }
 
   async approveAction(
@@ -83,15 +98,20 @@ export class ActionService {
     id: string,
     dto: ApproveActionDto,
   ) {
-    const action = await this.findByIdOrThrow(companyId, id);
-    const targetStatus =
-      dto.decision === 'approved' ? ActionStatus.APPROVED : ActionStatus.REJECTED;
-    this.assertTransition(action.status, targetStatus);
-
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
     try {
+      const action = await queryRunner.manager.findOne(ActionEntity, {
+        where: { id, companyId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!action) throw new NotFoundException('Action not found');
+
+      const targetStatus =
+        dto.decision === 'approved' ? ActionStatus.APPROVED : ActionStatus.REJECTED;
+      this.assertTransition(action.status, targetStatus);
+
       const approval = this.approvalRepo.create({
         actionId: id,
         companyId,
@@ -104,8 +124,8 @@ export class ActionService {
 
       action.status = targetStatus;
       const saved = await queryRunner.manager.save(action);
+      await this.appendAudit(companyId, userId, 'Action', id, `APPROVE:${dto.decision}`, queryRunner);
       await queryRunner.commitTransaction();
-      await this.appendAudit(companyId, userId, 'Action', id, `APPROVE:${dto.decision}`);
       return saved;
     } catch (err) {
       await queryRunner.rollbackTransaction();
@@ -122,14 +142,19 @@ export class ActionService {
     result?: Record<string, any>,
     error?: string,
   ) {
-    const action = await this.findByIdOrThrow(companyId, id);
-    const targetStatus = error ? ActionStatus.EXECUTED_FAILED : ActionStatus.EXECUTED;
-    this.assertTransition(action.status, targetStatus);
-
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
     try {
+      const action = await queryRunner.manager.findOne(ActionEntity, {
+        where: { id, companyId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!action) throw new NotFoundException('Action not found');
+
+      const targetStatus = error ? ActionStatus.EXECUTED_FAILED : ActionStatus.EXECUTED;
+      this.assertTransition(action.status, targetStatus);
+
       const execution = this.executionRepo.create({
         actionId: id,
         companyId,
@@ -143,8 +168,8 @@ export class ActionService {
       action.status = targetStatus;
       action.executedAt = new Date();
       const saved = await queryRunner.manager.save(action);
+      await this.appendAudit(companyId, userId, 'Action', id, 'EXECUTE', queryRunner);
       await queryRunner.commitTransaction();
-      await this.appendAudit(companyId, userId, 'Action', id, 'EXECUTE');
       return saved;
     } catch (err) {
       await queryRunner.rollbackTransaction();
@@ -160,14 +185,29 @@ export class ActionService {
     id: string,
     verificationResult: Record<string, any>,
   ) {
-    const action = await this.findByIdOrThrow(companyId, id);
-    this.assertTransition(action.status, ActionStatus.VERIFIED);
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+    try {
+      const action = await queryRunner.manager.findOne(ActionEntity, {
+        where: { id, companyId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!action) throw new NotFoundException('Action not found');
+      this.assertTransition(action.status, ActionStatus.VERIFIED);
 
-    action.status = ActionStatus.VERIFIED;
-    action.verificationResult = verificationResult;
-    const saved = await this.actionRepo.save(action);
-    await this.appendAudit(companyId, userId, 'Action', id, 'VERIFY');
-    return saved;
+      action.status = ActionStatus.VERIFIED;
+      action.verificationResult = verificationResult;
+      const saved = await queryRunner.manager.save(action);
+      await this.appendAudit(companyId, userId, 'Action', id, 'VERIFY', queryRunner);
+      await queryRunner.commitTransaction();
+      return saved;
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
   }
 
   async rollbackAction(
@@ -176,13 +216,17 @@ export class ActionService {
     id: string,
     previousState: Record<string, any>,
   ) {
-    const action = await this.findByIdOrThrow(companyId, id);
-    this.assertTransition(action.status, ActionStatus.ROLLED_BACK);
-
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
     try {
+      const action = await queryRunner.manager.findOne(ActionEntity, {
+        where: { id, companyId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!action) throw new NotFoundException('Action not found');
+      this.assertTransition(action.status, ActionStatus.ROLLED_BACK);
+
       const rollback = this.rollbackRepo.create({
         actionId: id,
         companyId,
@@ -194,8 +238,8 @@ export class ActionService {
 
       action.status = ActionStatus.ROLLED_BACK;
       const saved = await queryRunner.manager.save(action);
+      await this.appendAudit(companyId, userId, 'Action', id, 'ROLLBACK', queryRunner);
       await queryRunner.commitTransaction();
-      await this.appendAudit(companyId, userId, 'Action', id, 'ROLLBACK');
       return saved;
     } catch (err) {
       await queryRunner.rollbackTransaction();
@@ -206,13 +250,28 @@ export class ActionService {
   }
 
   async closeAction(companyId: string, userId: string, id: string) {
-    const action = await this.findByIdOrThrow(companyId, id);
-    this.assertTransition(action.status, ActionStatus.CLOSED);
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+    try {
+      const action = await queryRunner.manager.findOne(ActionEntity, {
+        where: { id, companyId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!action) throw new NotFoundException('Action not found');
+      this.assertTransition(action.status, ActionStatus.CLOSED);
 
-    action.status = ActionStatus.CLOSED;
-    const saved = await this.actionRepo.save(action);
-    await this.appendAudit(companyId, userId, 'Action', id, 'CLOSE');
-    return saved;
+      action.status = ActionStatus.CLOSED;
+      const saved = await queryRunner.manager.save(action);
+      await this.appendAudit(companyId, userId, 'Action', id, 'CLOSE', queryRunner);
+      await queryRunner.commitTransaction();
+      return saved;
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
   }
 
   async queryActions(
@@ -281,6 +340,7 @@ export class ActionService {
     entityType: string,
     entityId: string,
     actionPerformed: string,
+    queryRunner?: QueryRunner,
   ) {
     const log = this.auditRepo.create({
       companyId,
@@ -289,6 +349,10 @@ export class ActionService {
       entityId,
       actionPerformed,
     });
-    await this.auditRepo.save(log);
+    if (queryRunner) {
+      await queryRunner.manager.save(log);
+    } else {
+      await this.auditRepo.save(log);
+    }
   }
 }

@@ -1,8 +1,9 @@
-import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, Column, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { BaseEntity } from '../../common/entities/base.entity';
 import { CompetitorEntity } from './competitor.entity';
 
 @Entity('competitor_snapshots')
+@Index('idx_comp_snap_time', ['competitorId', 'snapshotAt'])
 export class CompetitorSnapshotEntity extends BaseEntity {
   @Column({ name: 'competitor_id' })
   competitorId: string;
