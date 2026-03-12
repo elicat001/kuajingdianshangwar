@@ -32,6 +32,18 @@ export class MetricsController {
     return this.metricsService.getTrends(companyId, parseInt(days || '7', 10));
   }
 
+  @Get('category-sales')
+  @ApiOperation({ summary: 'Get sales distribution by site/category' })
+  getCategorySales(@CurrentUser('companyId') companyId: string) {
+    return this.metricsService.getCategorySales(companyId);
+  }
+
+  @Get('platform-comparison')
+  @ApiOperation({ summary: 'Get cross-platform store comparison' })
+  getPlatformComparison(@CurrentUser('companyId') companyId: string) {
+    return this.metricsService.getPlatformComparison(companyId);
+  }
+
   @Get('snapshots')
   @ApiOperation({ summary: 'Query metric snapshots with pagination' })
   querySnapshots(
@@ -39,6 +51,78 @@ export class MetricsController {
     @Query() query: QueryMetricsDto,
   ) {
     return this.metricsService.queryMetrics(companyId, query);
+  }
+
+  @Get('product-performance')
+  @ApiOperation({ summary: 'Query product performance data' })
+  getProductPerformance(
+    @CurrentUser('companyId') companyId: string,
+    @Query('skuId') skuId?: string,
+    @Query('storeId') storeId?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    return this.metricsService.getProductPerformance(companyId, {
+      skuId, storeId, startDate, endDate,
+      page: parseInt(page || '1', 10),
+      pageSize: parseInt(pageSize || '20', 10),
+    });
+  }
+
+  @Get('link-analysis')
+  @ApiOperation({ summary: 'Get link-level ROI/profit analysis' })
+  getLinkAnalysis(
+    @CurrentUser('companyId') companyId: string,
+    @Query('storeId') storeId?: string,
+    @Query('siteId') siteId?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    return this.metricsService.getLinkAnalysis(companyId, {
+      storeId, siteId, startDate, endDate,
+      page: parseInt(page || '1', 10),
+      pageSize: parseInt(pageSize || '20', 10),
+    });
+  }
+
+  @Get('link-analysis-enhanced')
+  @ApiOperation({ summary: 'Enhanced link analysis with IFS profit & 7-day trend' })
+  getEnhancedLinkAnalysis(
+    @CurrentUser('companyId') companyId: string,
+    @Query('reportDate') reportDate?: string,
+    @Query('storeName') storeName?: string,
+    @Query('platform') platform?: string,
+    @Query('keyword') keyword?: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    return this.metricsService.getEnhancedLinkAnalysis(companyId, {
+      reportDate,
+      storeName,
+      platform,
+      keyword,
+      page: parseInt(page || '1', 10),
+      pageSize: parseInt(pageSize || '20', 10),
+    });
+  }
+
+  @Get('link-analysis-detail')
+  @ApiOperation({ summary: 'Link analysis detail for a specific SKU/store/date' })
+  getLinkAnalysisDetail(
+    @CurrentUser('companyId') companyId: string,
+    @Query('skuCode') skuCode: string,
+    @Query('storeName') storeName: string,
+    @Query('reportDate') reportDate: string,
+  ) {
+    return this.metricsService.getLinkAnalysisDetail(companyId, {
+      skuCode,
+      storeName,
+      reportDate,
+    });
   }
 
   @Get('sku/:skuId')
