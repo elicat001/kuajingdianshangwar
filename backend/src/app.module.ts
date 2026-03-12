@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { LoggerModule } from 'nestjs-pino';
 import { databaseConfig } from './config/database.config';
@@ -11,10 +12,17 @@ import { AlertModule } from './alert/alert.module';
 import { RecommendationModule } from './recommendation/recommendation.module';
 import { ActionModule } from './action/action.module';
 import { JobsModule } from './common/jobs/jobs.module';
+import { UploadModule } from './upload/upload.module';
+import { AgentModule } from './agent/agent.module';
+import { ForecastModule } from './forecast/forecast.module';
+import { ProductTestModule } from './product-test/product-test.module';
+import { SupplyChainModule } from './supply-chain/supply-chain.module';
+import { BudgetMigrationModule } from './budget-migration/budget-migration.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    EventEmitterModule.forRoot(),
     RedisModule,
     LoggerModule.forRoot({
       pinoHttp: {
@@ -34,6 +42,12 @@ import { JobsModule } from './common/jobs/jobs.module';
     RecommendationModule,
     ActionModule,
     JobsModule,
+    UploadModule,
+    AgentModule,
+    ForecastModule,
+    ProductTestModule,
+    SupplyChainModule,
+    BudgetMigrationModule,
   ],
 })
 export class AppModule {}
