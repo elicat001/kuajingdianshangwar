@@ -18,6 +18,9 @@ export class PermissionEntity {
   @Column()
   action: string;
 
+  @Column({ name: 'page_code', nullable: true })
+  pageCode: string;
+
   @Column({ name: 'role_id' })
   roleId: string;
 

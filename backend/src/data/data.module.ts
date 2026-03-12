@@ -11,6 +11,12 @@ import { CompetitorSnapshotEntity } from './entities/competitor-snapshot.entity'
 import { MetricDefEntity } from './entities/metric-def.entity';
 import { MetricDefVersionEntity } from './entities/metric-def-version.entity';
 import { ConfigThresholdEntity } from './entities/config-threshold.entity';
+import {
+  SkuShopeePriceEntity,
+  SkuTemuPriceEntity,
+  SkuMercadolibrePriceEntity,
+} from './entities/sku-platform-price.entity';
+import { StorePromoterMappingEntity } from './entities/store-promoter-mapping.entity';
 
 @Module({
   imports: [
@@ -24,6 +30,10 @@ import { ConfigThresholdEntity } from './entities/config-threshold.entity';
       MetricDefEntity,
       MetricDefVersionEntity,
       ConfigThresholdEntity,
+      SkuShopeePriceEntity,
+      SkuTemuPriceEntity,
+      SkuMercadolibrePriceEntity,
+      StorePromoterMappingEntity,
     ]),
   ],
   controllers: [DataController],

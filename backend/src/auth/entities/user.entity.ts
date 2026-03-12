@@ -20,6 +20,12 @@ export class UserEntity extends BaseEntity {
   @Column({ default: true })
   active: boolean;
 
+  @Column({ nullable: true, default: '' })
+  department: string;
+
+  @Column({ name: 'permission_overrides', type: 'jsonb', nullable: true })
+  permissionOverrides: Record<string, boolean>;
+
   @Column({ name: 'last_login_at', nullable: true })
   lastLoginAt: Date;
 

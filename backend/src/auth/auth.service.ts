@@ -14,12 +14,30 @@ import * as bcrypt from 'bcrypt';
 import Redis from 'ioredis';
 import { UserEntity } from './entities/user.entity';
 import { RoleEntity } from './entities/role.entity';
+import { PermissionEntity } from './entities/permission.entity';
 import { UserRoleEntity } from './entities/user-role.entity';
 import { CompanyEntity } from './entities/company.entity';
 import { RegisterDto } from './dto/register.dto';
 import { AssignRoleDto } from './dto/assign-role.dto';
 import { UserRole } from '../common/enums';
 import { REDIS_CLIENT } from '../common/redis/redis.module';
+
+/** All known page codes in the system */
+export const PAGE_CODES = [
+  'DASHBOARD',
+  'SKU_MANAGEMENT',
+  'IMPORT',
+  'LINK_ANALYSIS',
+  'AGENT',
+  'ACTIONS',
+  'ALERTS',
+  'SETTINGS',
+  'COMPETITORS',
+  'REPORTS',
+  'USER_MANAGEMENT',
+] as const;
+
+export type PageCode = (typeof PAGE_CODES)[number];
 
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCKOUT_SECONDS = 900; // 15 minutes
@@ -40,6 +58,8 @@ export interface LoginResult {
     email: string;
     companyId: string;
     roles: string[];
+    department: string;
+    effectivePermissions: string[];
   };
 }
 
@@ -53,6 +73,8 @@ export class AuthService {
     private readonly userRepo: Repository<UserEntity>,
     @InjectRepository(RoleEntity)
     private readonly roleRepo: Repository<RoleEntity>,
+    @InjectRepository(PermissionEntity)
+    private readonly permissionRepo: Repository<PermissionEntity>,
     @InjectRepository(UserRoleEntity)
     private readonly userRoleRepo: Repository<UserRoleEntity>,
     @InjectRepository(CompanyEntity)
@@ -118,6 +140,13 @@ export class AuthService {
     // Update last login
     await this.userRepo.update(user.id, { lastLoginAt: new Date() });
 
+    const effectivePermissions = await this.getEffectivePermissions(
+      user.id,
+      user.companyId,
+    );
+
+    const fullUser = await this.userRepo.findOne({ where: { id: user.id } });
+
     return {
       accessToken: this.jwtService.sign(payload),
       user: {
@@ -125,6 +154,8 @@ export class AuthService {
         email: user.email,
         companyId: user.companyId,
         roles: user.roles,
+        department: fullUser?.department || '',
+        effectivePermissions,
       },
     };
   }
@@ -227,12 +258,130 @@ export class AuthService {
     return result !== null;
   }
 
+  /**
+   * Returns the effective page-level permissions for a user, merging role-based
+   * permissions with any user-specific overrides.
+   */
+  async getEffectivePermissions(
+    userId: string,
+    companyId: string,
+  ): Promise<string[]> {
+    const user = await this.userRepo.findOne({
+      where: { id: userId, companyId },
+      relations: ['userRoles', 'userRoles.role', 'userRoles.role.permissions'],
+    });
+    if (!user) throw new NotFoundException('User not found');
+
+    // Collect page codes from role-based permissions
+    const rolePageCodes = new Set<string>();
+    for (const ur of user.userRoles) {
+      if (ur.role?.permissions) {
+        for (const perm of ur.role.permissions) {
+          if (perm.pageCode) {
+            rolePageCodes.add(perm.pageCode);
+          }
+        }
+      }
+    }
+
+    // SUPER_ADMIN and ADMIN get all pages by default
+    const roleNames = user.userRoles.map((ur) => ur.role?.name);
+    const isAdmin = roleNames.some(
+      (r) => r === UserRole.SUPER_ADMIN || r === UserRole.ADMIN,
+    );
+    if (isAdmin) {
+      for (const code of PAGE_CODES) {
+        rolePageCodes.add(code);
+      }
+    }
+
+    // Apply user-level overrides: true = grant, false = revoke
+    const overrides = user.permissionOverrides || {};
+    const effective = new Set<string>(rolePageCodes);
+    for (const [code, allowed] of Object.entries(overrides)) {
+      if (allowed) {
+        effective.add(code);
+      } else {
+        effective.delete(code);
+      }
+    }
+
+    return Array.from(effective).sort();
+  }
+
+  /**
+   * Admin-only: update a user's permission overrides (page-level).
+   */
+  async updateUserPermissions(
+    userId: string,
+    companyId: string,
+    overrides: Record<string, boolean>,
+  ) {
+    const user = await this.userRepo.findOne({
+      where: { id: userId, companyId },
+    });
+    if (!user) throw new NotFoundException('User not found');
+
+    user.permissionOverrides = overrides;
+    await this.userRepo.save(user);
+    return { id: user.id, permissionOverrides: user.permissionOverrides };
+  }
+
+  /**
+   * Update a user's department.
+   */
+  async updateUserDepartment(
+    userId: string,
+    companyId: string,
+    department: string,
+  ) {
+    const user = await this.userRepo.findOne({
+      where: { id: userId, companyId },
+    });
+    if (!user) throw new NotFoundException('User not found');
+
+    user.department = department;
+    await this.userRepo.save(user);
+    return { id: user.id, department: user.department };
+  }
+
+  async getCompanyUsers(companyId: string) {
+    const users = await this.userRepo.find({
+      where: { companyId },
+      relations: ['userRoles', 'userRoles.role'],
+      order: { createdAt: 'DESC' },
+    });
+    return users.map((u) => ({
+      id: u.id,
+      email: u.email,
+      displayName: u.displayName,
+      avatar: u.avatar,
+      active: u.active,
+      lastLoginAt: u.lastLoginAt,
+      roles: u.userRoles.map((ur) => ur.role.name),
+      createdAt: u.createdAt,
+    }));
+  }
+
+  async toggleUserActive(userId: string, companyId: string) {
+    const user = await this.userRepo.findOne({ where: { id: userId, companyId } });
+    if (!user) throw new NotFoundException('User not found');
+    user.active = !user.active;
+    await this.userRepo.save(user);
+    return { id: user.id, active: user.active };
+  }
+
   async getProfile(userId: string) {
     const user = await this.userRepo.findOne({
       where: { id: userId },
       relations: ['userRoles', 'userRoles.role', 'company'],
     });
     if (!user) throw new NotFoundException('User not found');
+
+    const effectivePermissions = await this.getEffectivePermissions(
+      user.id,
+      user.companyId,
+    );
 
     return {
       id: user.id,
@@ -242,6 +391,8 @@ export class AuthService {
       companyId: user.companyId,
       companyName: user.company?.name,
       roles: user.userRoles.map((ur) => ur.role.name),
+      department: user.department || '',
+      effectivePermissions,
     };
   }
 }

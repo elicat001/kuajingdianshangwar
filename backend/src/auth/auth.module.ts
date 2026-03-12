@@ -13,6 +13,7 @@ import { UserRoleEntity } from './entities/user-role.entity';
 import { CompanyEntity } from './entities/company.entity';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { LocalStrategy } from './strategies/local.strategy';
+import { PagePermissionGuard } from './guards/page-permission.guard';
 
 @Module({
   imports: [
@@ -41,7 +42,7 @@ import { LocalStrategy } from './strategies/local.strategy';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, LocalStrategy],
-  exports: [AuthService, JwtModule],
+  providers: [AuthService, JwtStrategy, LocalStrategy, PagePermissionGuard],
+  exports: [AuthService, JwtModule, PagePermissionGuard],
 })
 export class AuthModule {}
